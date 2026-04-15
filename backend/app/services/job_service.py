@@ -1,7 +1,6 @@
 # Orchestrates tool execution, job state, work directories, and standard result files.
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from app.schemas.common import JobStatus
+from app.services.file_service import write_json
 from app.tools.errors import ToolError
 from app.tools.registry import get_tool_runner
 
@@ -48,8 +48,8 @@ class JobService:
             created_at=self._now(),
         )
         self.jobs[job_id] = job
-        self._write_json(workdir / "job.json", asdict(job))
-        self._write_json(workdir / "input.json", payload)
+        write_json(workdir / "job.json", asdict(job))
+        write_json(workdir / "input.json", payload)
 
         try:
             runner = get_tool_runner(tool_name)
@@ -57,7 +57,7 @@ class JobService:
 
             job.status = JobStatus.RUNNING
             job.started_at = self._now()
-            self._write_json(workdir / "job.json", asdict(job))
+            write_json(workdir / "job.json", asdict(job))
 
             result = runner.run(payload, workdir)
 
@@ -77,7 +77,7 @@ class JobService:
             }
             job.finished_at = self._now()
 
-        self._write_json(workdir / "job.json", asdict(job))
+        write_json(workdir / "job.json", asdict(job))
         return job
 
     def get_job(self, job_id: str) -> JobRecord | None:
@@ -87,7 +87,3 @@ class JobService:
     @staticmethod
     def _now() -> str:
         return datetime.now(UTC).isoformat()
-
-    @staticmethod
-    def _write_json(path: Path, data: dict[str, Any]) -> None:
-        path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")

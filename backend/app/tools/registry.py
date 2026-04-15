@@ -2,20 +2,20 @@
 from __future__ import annotations
 
 from app.tools.alignment.runner import (
-    PairwiseAlignmentRunner,
     PairwiseSimilarityMatrixRunner,
     ReferenceSimilarityTableRunner,
 )
 from app.tools.base import ToolRunner
 from app.tools.errors import ToolInputError
 from app.tools.ncbi.runner import NCBIRefSeqLookupRunner
+from app.tools.sequence_parts.runner import SequencePartsParseRunner
 
 
 TOOL_REGISTRY: dict[str, ToolRunner] = {
-    PairwiseAlignmentRunner.name: PairwiseAlignmentRunner(),
     ReferenceSimilarityTableRunner.name: ReferenceSimilarityTableRunner(),
     PairwiseSimilarityMatrixRunner.name: PairwiseSimilarityMatrixRunner(),
     NCBIRefSeqLookupRunner.name: NCBIRefSeqLookupRunner(),
+    SequencePartsParseRunner.name: SequencePartsParseRunner(),
 }
 
 

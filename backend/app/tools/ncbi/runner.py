@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from io import StringIO
-import json
 import os
 from pathlib import Path
 from typing import Any
 
+from app.services.file_service import write_json, write_text
 from app.tools.base import ToolRunner
 from app.tools.errors import ToolDependencyError, ToolExecutionError, ToolInputError
 from app.tools.ncbi.parser import parse_ncbi_json_result
@@ -51,7 +51,7 @@ class NCBIRefSeqLookupRunner(ToolRunner):
                 ) from exc
 
             raw_path = workdir / f"{db.value}_records.gb"
-            raw_path.write_text(records_text, encoding="utf-8")
+            write_text(raw_path, records_text)
             raw_files[db.value] = raw_path.name
 
             parsed_records = list(seqio.parse(StringIO(records_text), "genbank"))
@@ -66,7 +66,7 @@ class NCBIRefSeqLookupRunner(ToolRunner):
                 "raw": raw_files,
             },
         }
-        _write_json(workdir / "result.json", result)
+        write_json(workdir / "result.json", result)
         return self.parse_result(workdir)
 
     def parse_result(self, workdir: Path) -> dict[str, Any]:
@@ -158,7 +158,3 @@ def _feature_to_dict(feature: Any) -> dict[str, Any]:
             for key, value in feature.qualifiers.items()
         },
     }
-
-
-def _write_json(path: Path, data: dict[str, Any]) -> None:
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")

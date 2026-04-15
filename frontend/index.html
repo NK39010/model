@@ -1,0 +1,955 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bio Tool Demo</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: #1f2933;
+      background: #f4f7f6;
+    }
+
+    body {
+      margin: 0;
+    }
+
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 28px 16px 44px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    p {
+      margin: 0 0 20px;
+      color: #52616b;
+      line-height: 1.6;
+    }
+
+    section {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid #d7e0dd;
+    }
+
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      font-weight: 700;
+    }
+
+    select,
+    textarea,
+    input,
+    button {
+      box-sizing: border-box;
+      width: 100%;
+      border: 1px solid #9fb0aa;
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    select,
+    textarea,
+    input {
+      background: #ffffff;
+      padding: 10px;
+    }
+
+    textarea {
+      min-height: 260px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      line-height: 1.45;
+    }
+
+    button {
+      margin-top: 12px;
+      padding: 11px 14px;
+      color: #ffffff;
+      background: #196f63;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover {
+      background: #12584f;
+    }
+
+    pre {
+      overflow: auto;
+      min-height: 220px;
+      padding: 12px;
+      border: 1px solid #bccbc6;
+      border-radius: 6px;
+      background: #ffffff;
+      line-height: 1.45;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .part-view {
+      display: grid;
+      gap: 18px;
+    }
+
+    .part-controls {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #c7d4d0;
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    .part-controls label {
+      margin: 0;
+      font-weight: 700;
+    }
+
+    .part-search-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 1fr) auto auto auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .part-search-row button {
+      width: auto;
+      margin-top: 0;
+      padding: 9px 12px;
+      background: #2f5f70;
+    }
+
+    .part-search-row button:hover {
+      background: #244b59;
+    }
+
+    .part-search-status {
+      color: #52616b;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .part-options {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .part-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .part-actions button {
+      width: auto;
+      margin-top: 0;
+      padding: 8px 12px;
+      background: #2f5f70;
+    }
+
+    .part-actions button:hover {
+      background: #244b59;
+    }
+
+    .part-option {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      color: #334e56;
+      font-weight: 700;
+    }
+
+    .part-option input {
+      width: auto;
+    }
+
+    .part-summary {
+      margin: 0;
+      color: #334e56;
+      font-weight: 700;
+    }
+
+    .part-belt {
+      display: flex;
+      overflow-x: auto;
+      padding: 8px 0 12px;
+      align-items: stretch;
+    }
+
+    .part-card {
+      min-width: 132px;
+      max-width: 180px;
+      padding: 10px;
+      border: 1px solid #263238;
+      border-right-width: 0;
+      border-radius: 0;
+      background: #ffffff;
+      color: #102027;
+      flex: 0 0 auto;
+    }
+
+    .part-card.disabled {
+      opacity: 0.42;
+      filter: grayscale(0.4);
+    }
+
+    .part-card.highlight {
+      outline: 3px solid #f2c94c;
+      outline-offset: -3px;
+    }
+
+    .part-card.active-match {
+      outline: 4px solid #d94f30;
+      outline-offset: -4px;
+    }
+
+    .part-card-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .part-card-head input {
+      width: auto;
+      flex: 0 0 auto;
+    }
+
+    .part-card:first-child {
+      border-radius: 6px 0 0 6px;
+    }
+
+    .part-card:last-child {
+      border-right-width: 1px;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .part-card.promoter {
+      background: #8fd19e;
+    }
+
+    .part-card.cds,
+    .part-card.orf {
+      background: #8ecae6;
+    }
+
+    .part-card.resistance {
+      background: #ef9a9a;
+    }
+
+    .part-card.terminator {
+      background: #c8d1d3;
+    }
+
+    .part-card.origin {
+      background: #c5b3e6;
+    }
+
+    .part-card.linker {
+      background: #eef3f1;
+      color: #52616b;
+    }
+
+    .part-type {
+      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .part-label {
+      margin-top: 6px;
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .part-meta {
+      margin-top: 6px;
+      font-size: 12px;
+    }
+
+    .circle-preview {
+      width: min(360px, 100%);
+      height: auto;
+      display: block;
+    }
+
+    .part-empty {
+      margin: 0;
+      color: #6b7c85;
+      font-weight: 700;
+    }
+
+    @media (max-width: 680px) {
+      .part-search-row {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .part-search-row input {
+        grid-column: 1 / -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Bio Tool Demo</h1>
+    <p>选择工具，编辑 JSON 参数，提交后会同步运行任务并返回结果。</p>
+
+    <section>
+      <label for="tool">工具</label>
+      <select id="tool">
+        <option value="reference_similarity_table">基准序列相似度表</option>
+        <option value="pairwise_similarity_matrix">两两相似度矩阵</option>
+        <option value="ncbi_refseq_lookup">NCBI 编号查询</option>
+        <option value="sequence_parts_parse">GenBank 零件解析</option>
+      </select>
+
+      <label for="payload">输入 JSON</label>
+      <textarea id="payload"></textarea>
+      <div id="fastaGroup">
+        <div id="fastaFieldA">
+          <label id="fastaLabelA" for="fastaFileA">FASTA 输入 1，可选</label>
+          <input id="fastaFileA" type="file" accept=".fasta,.fa,.faa,.fna,.txt">
+        </div>
+        <div id="fastaFieldB">
+          <label id="fastaLabelB" for="fastaFileB">FASTA 输入 2，可选</label>
+          <input id="fastaFileB" type="file" accept=".fasta,.fa,.faa,.fna,.txt">
+        </div>
+        <p id="fileStatus">未选择 FASTA 文件。</p>
+      </div>
+      <div id="genbankGroup" class="hidden">
+        <label for="genbankFile">GenBank 文件</label>
+        <input id="genbankFile" type="file" accept=".gb,.gbk,.genbank,.dna,.txt">
+        <p id="genbankStatus">未选择 GenBank 文件。</p>
+      </div>
+
+      <button id="run">运行</button>
+    </section>
+
+    <section>
+      <h2>零件视图</h2>
+      <div id="partsView" class="part-view hidden"></div>
+    </section>
+
+    <section>
+      <h2>输出</h2>
+      <pre id="output">等待提交任务。</pre>
+    </section>
+  </main>
+
+  <script>
+    const examples = {
+      reference_similarity_table: {
+        reference: { id: "ref", sequence: "MEEPQSDPSV" },
+        targets: [
+          { id: "target_1", sequence: "MEEPQSEPSI" },
+          { id: "target_2", sequence: "MEEPQSGLSV" }
+        ],
+        include_alignments: true,
+        sequence_type: "protein",
+        substitution_matrix: "BLOSUM62",
+        gap_score: -10
+      },
+      pairwise_similarity_matrix: {
+        fasta: ">protein_1\nMEEPQSDPSV\n>protein_2\nMEEPQSEPSI\n>protein_3\nMEEPQSGLSV",
+        metric: "similarity",
+        sequence_type: "protein",
+        substitution_matrix: "BLOSUM62",
+        gap_score: -10
+      },
+      ncbi_refseq_lookup: {
+        ids: ["NM_007294"],
+        email: "your-email@example.com"
+      },
+      sequence_parts_parse: {
+        file_text: "LOCUS       demo_plasmid              60 bp    DNA     circular SYN 01-JAN-2026\nDEFINITION  demo plasmid.\nACCESSION   DEMO0001\nVERSION     DEMO0001.1\nFEATURES             Location/Qualifiers\n     source          1..60\n                     /organism=\"synthetic construct\"\n     promoter        1..10\n                     /label=\"P_demo\"\n     CDS             21..40\n                     /label=\"demo_cds\"\n     terminator      51..60\n                     /label=\"T_demo\"\nORIGIN\n        1 aaaaaaaaaa cccccccccc atgatgatga tgatgatgat gggggggggg tttttttttt\n//\n",
+        format: "genbank"
+      }
+    };
+
+    const tool = document.querySelector("#tool");
+    const payload = document.querySelector("#payload");
+    const output = document.querySelector("#output");
+    const partsView = document.querySelector("#partsView");
+    const run = document.querySelector("#run");
+    const fastaGroup = document.querySelector("#fastaGroup");
+    const fastaFieldA = document.querySelector("#fastaFieldA");
+    const fastaFieldB = document.querySelector("#fastaFieldB");
+    const fastaLabelA = document.querySelector("#fastaLabelA");
+    const fastaLabelB = document.querySelector("#fastaLabelB");
+    const fastaFileA = document.querySelector("#fastaFileA");
+    const fastaFileB = document.querySelector("#fastaFileB");
+    const fileStatus = document.querySelector("#fileStatus");
+    const genbankGroup = document.querySelector("#genbankGroup");
+    const genbankFile = document.querySelector("#genbankFile");
+    const genbankStatus = document.querySelector("#genbankStatus");
+    let currentPartsResult = null;
+    const partViewState = {
+      search: "",
+      activeSearchIndex: -1,
+      shouldScrollSearch: false,
+      showLinker: true,
+      showGeneric: true,
+      enlargeCommon: true,
+      hiddenPartIds: new Set()
+    };
+
+    function loadExample() {
+      payload.value = JSON.stringify(examples[tool.value], null, 2);
+      fastaFileA.value = "";
+      fastaFileB.value = "";
+      genbankFile.value = "";
+      clearPartsView();
+      updateFileInputs();
+      updateFileStatus();
+      updateGenBankStatus();
+    }
+
+    tool.addEventListener("change", loadExample);
+    loadExample();
+
+    async function payloadWithSelectedFasta(strict = true) {
+      const data = JSON.parse(payload.value);
+      const fileA = fastaFileA.files[0];
+      const fileB = fastaFileB.files[0];
+      if (!fileA && !fileB) {
+        return data;
+      }
+
+      if (tool.value === "reference_similarity_table") {
+        if (!fileA || !fileB) {
+          if (!strict) {
+            return data;
+          }
+          throw new Error("参考序列相似度表需要基准 FASTA 和目标 FASTA。");
+        }
+        data.reference_fasta = await fileA.text();
+        data.targets_fasta = await fileB.text();
+        delete data.reference;
+        delete data.targets;
+      } else if (tool.value === "pairwise_similarity_matrix") {
+        if (!fileA) {
+          if (!strict) {
+            return data;
+          }
+          throw new Error("两两相似度矩阵需要 FASTA 输入 1。");
+        }
+        data.fasta = await fileA.text();
+        delete data.sequences;
+        data.metric = data.metric || "similarity";
+      }
+
+      if (tool.value !== "ncbi_refseq_lookup" && tool.value !== "sequence_parts_parse") {
+        data.sequence_type = data.sequence_type || "protein";
+        data.substitution_matrix = data.substitution_matrix || "BLOSUM62";
+        data.gap_score = data.gap_score ?? -10;
+        if (tool.value === "reference_similarity_table") {
+          data.include_alignments = data.include_alignments ?? true;
+        }
+      }
+      return data;
+    }
+
+    async function payloadWithSelectedGenBank(strict = true) {
+      const data = JSON.parse(payload.value);
+      const file = genbankFile.files[0];
+      if (!file) {
+        if (strict && tool.value === "sequence_parts_parse" && !data.file_text) {
+          throw new Error("GenBank 零件解析需要上传 GenBank 文件或填写 file_text。");
+        }
+        return data;
+      }
+
+      data.file_text = await file.text();
+      data.format = data.format || "genbank";
+      return data;
+    }
+
+    async function applySelectedFastaToPayload() {
+      const data = await payloadWithSelectedFasta(false);
+      payload.value = JSON.stringify(data, null, 2);
+      updateFileStatus();
+    }
+
+    async function applySelectedGenBankToPayload() {
+      const data = await payloadWithSelectedGenBank(false);
+      payload.value = JSON.stringify(data, null, 2);
+      updateGenBankStatus();
+    }
+
+    fastaFileA.addEventListener("change", applySelectedFastaToPayload);
+    fastaFileB.addEventListener("change", applySelectedFastaToPayload);
+    genbankFile.addEventListener("change", applySelectedGenBankToPayload);
+
+    function updateFileInputs() {
+      fastaGroup.classList.remove("hidden");
+      fastaFieldA.classList.remove("hidden");
+      fastaFieldB.classList.remove("hidden");
+      genbankGroup.classList.add("hidden");
+
+      if (tool.value === "reference_similarity_table") {
+        fastaLabelA.textContent = "基准序列 FASTA，可选";
+        fastaLabelB.textContent = "目标序列 FASTA，可选";
+      } else if (tool.value === "pairwise_similarity_matrix") {
+        fastaLabelA.textContent = "多序列 FASTA，可选";
+        fastaFieldB.classList.add("hidden");
+        fastaFileB.value = "";
+      } else if (tool.value === "ncbi_refseq_lookup" || tool.value === "sequence_parts_parse") {
+        fastaGroup.classList.add("hidden");
+        fastaFileA.value = "";
+        fastaFileB.value = "";
+      }
+
+      if (tool.value === "sequence_parts_parse") {
+        genbankGroup.classList.remove("hidden");
+      }
+    }
+
+    function updateFileStatus() {
+      if (fastaGroup.classList.contains("hidden")) {
+        fileStatus.textContent = "";
+        return;
+      }
+
+      const parts = [];
+      if (fastaFileA.files[0]) {
+        parts.push(`输入 1: ${fastaFileA.files[0].name}`);
+      }
+      if (fastaFileB.files[0]) {
+        parts.push(`输入 2: ${fastaFileB.files[0].name}`);
+      }
+      fileStatus.textContent = parts.length ? parts.join("；") : "未选择 FASTA 文件。";
+    }
+
+    function updateGenBankStatus() {
+      if (genbankGroup.classList.contains("hidden")) {
+        genbankStatus.textContent = "";
+        return;
+      }
+
+      genbankStatus.textContent = genbankFile.files[0]
+        ? `已选择: ${genbankFile.files[0].name}`
+        : "未选择 GenBank 文件。";
+    }
+
+    run.addEventListener("click", async () => {
+      output.textContent = "运行中...";
+      try {
+        let requestPayload = await payloadWithSelectedFasta(true);
+        if (tool.value === "sequence_parts_parse") {
+          requestPayload = await payloadWithSelectedGenBank(true);
+        }
+        payload.value = JSON.stringify(requestPayload, null, 2);
+        const response = await fetch("/api/jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tool_name: tool.value,
+            payload: requestPayload
+          })
+        });
+        const data = await response.json();
+        renderPartsView(data);
+        output.textContent = formatOutput(data);
+      } catch (error) {
+        output.textContent = String(error);
+      }
+    });
+
+    function formatOutput(data) {
+      if (data.tool_name === "sequence_parts_parse" && data.result && data.result.parts) {
+        const lines = [
+          `${data.result.record_id} | ${data.result.topology} | ${data.result.sequence_length} bp`,
+          `parts: ${data.result.part_count}`,
+          "",
+          "id\ttype\tlabel\tstart\tend\tlength"
+        ];
+        for (const part of data.result.parts) {
+          lines.push(`${part.id}\t${part.type}\t${part.label}\t${part.start + 1}\t${part.end}\t${part.length}`);
+        }
+        lines.push("", JSON.stringify(data, null, 2));
+        return lines.join("\n");
+      }
+      return JSON.stringify(data, null, 2);
+    }
+
+    function clearPartsView() {
+      partsView.innerHTML = "";
+      partsView.classList.add("hidden");
+      currentPartsResult = null;
+    }
+
+    function renderPartsView(data) {
+      clearPartsView();
+      if (data.tool_name !== "sequence_parts_parse" || !data.result || !data.result.parts) {
+        return;
+      }
+
+      const result = data.result;
+      currentPartsResult = result;
+      partViewState.hiddenPartIds = new Set();
+      partsView.classList.remove("hidden");
+      partsView.appendChild(partControls());
+      partsView.appendChild(partSummary(result));
+      redrawPartsView();
+    }
+
+    function redrawPartsView() {
+      if (!currentPartsResult) {
+        return;
+      }
+
+      partsView.querySelectorAll(".part-belt, .circle-preview, .part-empty").forEach((item) => item.remove());
+      partsView.appendChild(linearPartBelt(currentPartsResult.parts, currentPartsResult.sequence_length));
+      const visibleParts = visiblePartList(currentPartsResult.parts);
+      if (!visibleParts.length) {
+        const empty = document.createElement("p");
+        empty.className = "part-empty";
+        empty.textContent = "当前没有选择展示的零件。";
+        partsView.appendChild(empty);
+        updateSearchStatus();
+        scrollToActivePartIfNeeded();
+        return;
+      }
+
+      partsView.appendChild(circularPreview(currentPartsResult, visibleParts));
+      updateSearchStatus();
+      scrollToActivePartIfNeeded();
+    }
+
+    function partControls() {
+      const controls = document.createElement("div");
+      controls.className = "part-controls";
+      controls.innerHTML = `
+        <label for="partSearch">搜索零件</label>
+        <div class="part-search-row">
+          <input id="partSearch" type="search" placeholder="按名称、类型或 ID 搜索" value="${escapeHtml(partViewState.search)}">
+          <button id="confirmSearch" type="button">确定搜索</button>
+          <button id="prevSearch" type="button">上一个</button>
+          <button id="nextSearch" type="button">下一个</button>
+        </div>
+        <div id="partSearchStatus" class="part-search-status">未搜索。</div>
+        <div class="part-options">
+          <label class="part-option">
+            <input id="showLinker" type="checkbox" ${partViewState.showLinker ? "checked" : ""}>
+            显示 Linker
+          </label>
+          <label class="part-option">
+            <input id="showGeneric" type="checkbox" ${partViewState.showGeneric ? "checked" : ""}>
+            显示通用 feature
+          </label>
+          <label class="part-option">
+            <input id="enlargeCommon" type="checkbox" ${partViewState.enlargeCommon ? "checked" : ""}>
+            放大通用/短零件占比
+          </label>
+        </div>
+        <div class="part-actions">
+          <button id="showAllParts" type="button">全部展示</button>
+          <button id="hideAllParts" type="button">全部隐去</button>
+        </div>
+      `;
+
+      const searchInput = controls.querySelector("#partSearch");
+      const confirmSearch = () => {
+        partViewState.search = searchInput.value.trim().toLowerCase();
+        partViewState.activeSearchIndex = partViewState.search ? 0 : -1;
+        partViewState.shouldScrollSearch = true;
+        redrawPartsView();
+      };
+
+      searchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          confirmSearch();
+        }
+      });
+      controls.querySelector("#confirmSearch").addEventListener("click", confirmSearch);
+      controls.querySelector("#prevSearch").addEventListener("click", () => {
+        moveSearch(-1, searchInput.value);
+      });
+      controls.querySelector("#nextSearch").addEventListener("click", () => {
+        moveSearch(1, searchInput.value);
+      });
+      controls.querySelector("#showLinker").addEventListener("change", (event) => {
+        partViewState.showLinker = event.target.checked;
+        redrawPartsView();
+      });
+      controls.querySelector("#showGeneric").addEventListener("change", (event) => {
+        partViewState.showGeneric = event.target.checked;
+        redrawPartsView();
+      });
+      controls.querySelector("#enlargeCommon").addEventListener("change", (event) => {
+        partViewState.enlargeCommon = event.target.checked;
+        redrawPartsView();
+      });
+      controls.querySelector("#showAllParts").addEventListener("click", () => {
+        partViewState.hiddenPartIds = new Set();
+        redrawPartsView();
+      });
+      controls.querySelector("#hideAllParts").addEventListener("click", () => {
+        if (!currentPartsResult) {
+          return;
+        }
+        partViewState.hiddenPartIds = new Set(currentPartsResult.parts.map((part) => part.id));
+        redrawPartsView();
+      });
+      updateSearchStatus();
+      return controls;
+    }
+
+    function partSummary(result) {
+      const item = document.createElement("p");
+      item.className = "part-summary";
+      item.textContent = `${result.record_id} · ${result.topology} · ${result.sequence_length} bp · ${result.part_count} parts`;
+      return item;
+    }
+
+    function visiblePartList(parts) {
+      return parts.filter((part) => {
+        if (partViewState.hiddenPartIds.has(part.id)) {
+          return false;
+        }
+        if (!partViewState.showLinker && part.type === "linker") {
+          return false;
+        }
+        if (!partViewState.showGeneric && isGenericPart(part)) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function partMatchesSearch(part) {
+      if (!partViewState.search) {
+        return true;
+      }
+      return [part.id, part.type, part.label, part.source_feature_type]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(partViewState.search);
+    }
+
+    function searchMatches() {
+      if (!currentPartsResult || !partViewState.search) {
+        return [];
+      }
+      return currentPartsResult.parts.filter(partMatchesSearch);
+    }
+
+    function activeSearchPartId() {
+      const matches = searchMatches();
+      if (!matches.length) {
+        return "";
+      }
+      const index = normalizeSearchIndex(matches.length);
+      return matches[index].id;
+    }
+
+    function normalizeSearchIndex(matchCount) {
+      if (!matchCount) {
+        partViewState.activeSearchIndex = -1;
+        return -1;
+      }
+      if (partViewState.activeSearchIndex < 0) {
+        partViewState.activeSearchIndex = 0;
+      }
+      if (partViewState.activeSearchIndex >= matchCount) {
+        partViewState.activeSearchIndex = matchCount - 1;
+      }
+      return partViewState.activeSearchIndex;
+    }
+
+    function moveSearch(direction, inputValue = "") {
+      const nextSearch = inputValue.trim().toLowerCase();
+      if (nextSearch !== partViewState.search) {
+        partViewState.search = nextSearch;
+        partViewState.activeSearchIndex = direction > 0 ? 0 : -1;
+      }
+      const matches = searchMatches();
+      if (!matches.length) {
+        partViewState.shouldScrollSearch = true;
+        updateSearchStatus();
+        return;
+      }
+      const currentIndex = normalizeSearchIndex(matches.length);
+      partViewState.activeSearchIndex = (currentIndex + direction + matches.length) % matches.length;
+      partViewState.shouldScrollSearch = true;
+      redrawPartsView();
+    }
+
+    function updateSearchStatus() {
+      const status = document.querySelector("#partSearchStatus");
+      if (!status) {
+        return;
+      }
+      if (!partViewState.search) {
+        status.textContent = "未搜索。";
+        return;
+      }
+      const matches = searchMatches();
+      if (!matches.length) {
+        status.textContent = `没有找到: ${partViewState.search}`;
+        return;
+      }
+      const index = normalizeSearchIndex(matches.length);
+      status.textContent = `找到 ${matches.length} 个，当前 ${index + 1}/${matches.length}: ${matches[index].label}`;
+    }
+
+    function linearPartBelt(parts, sequenceLength) {
+      const belt = document.createElement("div");
+      belt.className = "part-belt";
+      const weights = visualWeights(parts, sequenceLength);
+      const activePartId = activeSearchPartId();
+      for (const part of parts) {
+        const card = document.createElement("div");
+        const selected = !partViewState.hiddenPartIds.has(part.id);
+        const matched = partMatchesSearch(part);
+        card.className = [
+          "part-card",
+          part.type,
+          selected ? "" : "disabled",
+          matched && partViewState.search ? "highlight" : "",
+          part.id === activePartId ? "active-match" : ""
+        ].filter(Boolean).join(" ");
+        card.dataset.partId = part.id;
+        card.style.minWidth = `${Math.max(118, Math.min(230, weights.get(part.id) * 28))}px`;
+        card.innerHTML = `
+          <div class="part-card-head">
+            <div class="part-type">${escapeHtml(part.type)}</div>
+            <input type="checkbox" title="是否展示" ${selected ? "checked" : ""}>
+          </div>
+          <div class="part-label">${escapeHtml(part.label)}</div>
+          <div class="part-meta">${part.start + 1}-${part.end} · ${part.length} bp</div>
+        `;
+        card.querySelector("input").addEventListener("change", (event) => {
+          if (event.target.checked) {
+            partViewState.hiddenPartIds.delete(part.id);
+          } else {
+            partViewState.hiddenPartIds.add(part.id);
+          }
+          redrawPartsView();
+        });
+        belt.appendChild(card);
+      }
+      return belt;
+    }
+
+    function scrollToActivePartIfNeeded() {
+      if (!partViewState.shouldScrollSearch) {
+        return;
+      }
+      partViewState.shouldScrollSearch = false;
+      if (!partViewState.search) {
+        return;
+      }
+      const target = partsView.querySelector(".part-card.active-match");
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+
+    function circularPreview(result, parts) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 360 360");
+      svg.setAttribute("class", "circle-preview");
+
+      const background = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      background.setAttribute("cx", "180");
+      background.setAttribute("cy", "180");
+      background.setAttribute("r", "120");
+      background.setAttribute("fill", "none");
+      background.setAttribute("stroke", "#d7e0dd");
+      background.setAttribute("stroke-width", "22");
+      svg.appendChild(background);
+
+      let offset = 0;
+      const circumference = 2 * Math.PI * 120;
+      const weights = visualWeights(parts, result.sequence_length);
+      const totalWeight = Array.from(weights.values()).reduce((sum, weight) => sum + weight, 0);
+      for (const part of parts) {
+        const dash = (weights.get(part.id) / totalWeight) * circumference;
+        const segment = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        segment.setAttribute("cx", "180");
+        segment.setAttribute("cy", "180");
+        segment.setAttribute("r", "120");
+        segment.setAttribute("fill", "none");
+        segment.setAttribute("stroke", partColor(part.type));
+        segment.setAttribute("stroke-width", "22");
+        segment.setAttribute("stroke-dasharray", `${dash} ${circumference - dash}`);
+        segment.setAttribute("stroke-dashoffset", `${-offset}`);
+        segment.setAttribute("transform", "rotate(-90 180 180)");
+        segment.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "title"))
+          .textContent = `${part.label} (${part.type}, ${part.length} bp)`;
+        svg.appendChild(segment);
+        offset += dash;
+      }
+
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", "180");
+      label.setAttribute("y", "184");
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("font-size", "16");
+      label.setAttribute("font-weight", "700");
+      label.textContent = result.topology;
+      svg.appendChild(label);
+
+      return svg;
+    }
+
+    function visualWeights(parts, sequenceLength) {
+      const weights = new Map();
+      const minCommonWeight = Math.max(sequenceLength * 0.035, 1);
+      for (const part of parts) {
+        let weight = Math.max(part.length, 1);
+        if (partViewState.enlargeCommon && (part.type === "linker" || isGenericPart(part))) {
+          weight = Math.max(weight * 2.4, minCommonWeight);
+        } else if (partViewState.enlargeCommon) {
+          weight = Math.max(weight, sequenceLength * 0.01);
+        }
+        weights.set(part.id, weight);
+      }
+      return weights;
+    }
+
+    function isGenericPart(part) {
+      return part.type === "feature";
+    }
+
+    function partColor(type) {
+      const colors = {
+        promoter: "#4caf62",
+        cds: "#4098c7",
+        orf: "#4098c7",
+        resistance: "#d65f5f",
+        terminator: "#8d9a9e",
+        origin: "#8e73be",
+        linker: "#cfd8d3"
+      };
+      return colors[type] || "#ffffff";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+  </script>
+</body>
+</html>

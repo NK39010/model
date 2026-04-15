@@ -55,6 +55,25 @@ class PairwiseAlignmentRunnerTest(unittest.TestCase):
             self.assertGreaterEqual(result["similarity"], result["identity"])
             self.assertTrue((workdir / "result.json").exists())
 
+    def test_pairwise_alignment_runner_accepts_two_fasta_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            workdir = Path(tempdir)
+            runner = PairwiseAlignmentRunner()
+            payload = {
+                "fasta_a": ">protein_a\nMEEPQSDPSV\n",
+                "fasta_b": ">protein_b\nMEEPQSEPSI\n",
+                "sequence_type": "protein",
+                "substitution_matrix": "BLOSUM62",
+                "gap_score": -10,
+            }
+
+            runner.validate_input(payload)
+            result = runner.run(payload, workdir)
+
+            self.assertEqual(result["alignment_length"], 10)
+            self.assertGreater(result["score"], 0)
+            self.assertTrue((workdir / "alignment.txt").exists())
+
     def test_reference_similarity_table_runner_writes_table_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             workdir = Path(tempdir)
@@ -77,10 +96,53 @@ class PairwiseAlignmentRunnerTest(unittest.TestCase):
 
             self.assertEqual(result["reference_id"], "ref")
             self.assertEqual(result["target_count"], 2)
+            self.assertFalse(result["include_alignments"])
             self.assertEqual(len(result["rows"]), 2)
             self.assertEqual(result["rows"][0]["target_id"], "seq1")
             self.assertIn("identity", result["rows"][0])
             self.assertTrue((workdir / "result.json").exists())
+            self.assertTrue((workdir / "similarity_table.csv").exists())
+
+    def test_reference_similarity_table_runner_can_include_alignments(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            workdir = Path(tempdir)
+            runner = ReferenceSimilarityTableRunner()
+            payload = {
+                "reference": {"id": "ref", "sequence": "MEEPQSDPSV"},
+                "targets": [{"id": "target_1", "sequence": "MEEPQSEPSI"}],
+                "include_alignments": True,
+                "sequence_type": "protein",
+                "substitution_matrix": "BLOSUM62",
+                "gap_score": -10,
+            }
+
+            runner.validate_input(payload)
+            result = runner.run(payload, workdir)
+
+            self.assertTrue(result["include_alignments"])
+            self.assertEqual(result["target_count"], 1)
+            self.assertEqual(result["rows"][0]["aligned_reference"], "MEEPQSDPSV")
+            self.assertEqual(result["rows"][0]["aligned_target"], "MEEPQSEPSI")
+            self.assertIn("alignment_match_line", result["rows"][0])
+
+    def test_reference_similarity_table_runner_accepts_two_fasta_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            workdir = Path(tempdir)
+            runner = ReferenceSimilarityTableRunner()
+            payload = {
+                "reference_fasta": ">ref\nMEEPQSDPSV\n",
+                "targets_fasta": ">target_1\nMEEPQSEPSI\n>target_2\nMEEPQSGLSV\n",
+                "sequence_type": "protein",
+                "substitution_matrix": "BLOSUM62",
+                "gap_score": -10,
+            }
+
+            runner.validate_input(payload)
+            result = runner.run(payload, workdir)
+
+            self.assertEqual(result["reference_id"], "ref")
+            self.assertEqual(result["target_count"], 2)
+            self.assertEqual(result["rows"][0]["target_id"], "target_1")
             self.assertTrue((workdir / "similarity_table.csv").exists())
 
     def test_pairwise_similarity_matrix_runner_writes_heatmap_outputs(self) -> None:
@@ -109,6 +171,28 @@ class PairwiseAlignmentRunnerTest(unittest.TestCase):
             self.assertTrue((workdir / "result.json").exists())
             self.assertTrue((workdir / "similarity_matrix.csv").exists())
             self.assertTrue((workdir / "pairwise_table.csv").exists())
+
+    def test_pairwise_similarity_matrix_runner_accepts_protein_fasta(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            workdir = Path(tempdir)
+            runner = PairwiseSimilarityMatrixRunner()
+            payload = {
+                "fasta": ">protein_1\nMEEPQSDPSV\n>protein_2\nMEEPQSEPSI\n>protein_3\nMEEPQSGLSV\n",
+                "metric": "similarity",
+                "sequence_type": "protein",
+                "substitution_matrix": "BLOSUM62",
+                "gap_score": -10,
+            }
+
+            runner.validate_input(payload)
+            result = runner.run(payload, workdir)
+
+            self.assertEqual(result["sequence_ids"], ["protein_1", "protein_2", "protein_3"])
+            self.assertEqual(result["metric"], "similarity")
+            self.assertEqual(len(result["matrix"]), 3)
+            self.assertEqual(result["matrix"][0][0], 1.0)
+            self.assertGreaterEqual(result["matrix"][0][1], 0.8)
+            self.assertTrue((workdir / "similarity_matrix.csv").exists())
 
 
 if __name__ == "__main__":

@@ -1,11 +1,10 @@
 # Implements sequence alignment task runners for pairwise, table, and matrix outputs.
 from __future__ import annotations
 
-import csv
-import json
 from pathlib import Path
 from typing import Any
 
+from app.services.file_service import write_csv, write_json, write_matrix_csv, write_text
 from app.tools.alignment.algorithms import biopython_global_alignment
 from app.tools.alignment.parser import parse_alignment_result
 from app.tools.alignment.schemas import (
@@ -29,8 +28,9 @@ class PairwiseAlignmentRunner(ToolRunner):
         data = PairwiseAlignmentInput.from_payload(payload)
         output = biopython_global_alignment(data)
 
-        _write_json(workdir / "result.json", output.to_dict())
-        (workdir / "alignment.txt").write_text(
+        write_json(workdir / "result.json", output.to_dict())
+        write_text(
+            workdir / "alignment.txt",
             "\n".join(
                 [
                     output.aligned_sequence_a,
@@ -41,7 +41,6 @@ class PairwiseAlignmentRunner(ToolRunner):
                 ]
             )
             + "\n",
-            encoding="utf-8",
         )
 
         return self.parse_result(workdir)
@@ -95,11 +94,19 @@ class ReferenceSimilarityTableRunner(ToolRunner):
                 "mismatch_count": alignment.mismatch_count,
                 "gap_count": alignment.gap_count,
             }
+            if data.include_alignments:
+                row["aligned_reference"] = alignment.aligned_sequence_a
+                row["aligned_target"] = alignment.aligned_sequence_b
+                row["alignment_match_line"] = _match_line(
+                    alignment.aligned_sequence_a,
+                    alignment.aligned_sequence_b,
+                )
             rows.append(row)
 
         result = {
             "reference_id": data.reference.id,
             "target_count": len(data.targets),
+            "include_alignments": data.include_alignments,
             "rows": rows,
             "files": {
                 "json": "result.json",
@@ -107,8 +114,8 @@ class ReferenceSimilarityTableRunner(ToolRunner):
             },
         }
 
-        _write_json(workdir / "result.json", result)
-        _write_csv(workdir / "similarity_table.csv", rows)
+        write_json(workdir / "result.json", result)
+        write_csv(workdir / "similarity_table.csv", rows)
         return self.parse_result(workdir)
 
     def parse_result(self, workdir: Path) -> dict[str, Any]:
@@ -186,9 +193,9 @@ class PairwiseSimilarityMatrixRunner(ToolRunner):
             },
         }
 
-        _write_json(workdir / "result.json", result)
-        _write_matrix_csv(workdir / "similarity_matrix.csv", sequence_ids, matrix)
-        _write_csv(workdir / "pairwise_table.csv", long_table)
+        write_json(workdir / "result.json", result)
+        write_matrix_csv(workdir / "similarity_matrix.csv", sequence_ids, matrix)
+        write_csv(workdir / "pairwise_table.csv", long_table)
         return self.parse_result(workdir)
 
     def parse_result(self, workdir: Path) -> dict[str, Any]:
@@ -200,26 +207,3 @@ class PairwiseSimilarityMatrixRunner(ToolRunner):
 
 def _match_line(sequence_a: str, sequence_b: str) -> str:
     return "".join("|" if a == b else " " for a, b in zip(sequence_a, sequence_b, strict=True))
-
-
-def _write_json(path: Path, data: dict[str, Any]) -> None:
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-
-
-def _write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    if not rows:
-        path.write_text("", encoding="utf-8")
-        return
-
-    with path.open("w", newline="", encoding="utf-8") as file_obj:
-        writer = csv.DictWriter(file_obj, fieldnames=list(rows[0].keys()))
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def _write_matrix_csv(path: Path, sequence_ids: list[str], matrix: list[list[float | int]]) -> None:
-    with path.open("w", newline="", encoding="utf-8") as file_obj:
-        writer = csv.writer(file_obj)
-        writer.writerow(["sequence_id", *sequence_ids])
-        for sequence_id, row in zip(sequence_ids, matrix, strict=True):
-            writer.writerow([sequence_id, *row])

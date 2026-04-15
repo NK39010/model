@@ -1,28 +1,27 @@
-# Runs readable end-to-end demonstrations of registry-based tool execution.
+# Runs readable developer examples of registry-based tool execution.
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
+from app.core.config import RESULTS_ROOT
+from app.services.file_service import list_file_names
 from app.services.job_service import JobService
 from app.tools.registry import list_tools
 
 
 def main() -> None:
-    service = JobService(results_root=Path("data/results"))
-    pairwise_payload = {
-        "sequence_a": "ATGCTAGC",
-        "sequence_b": "ATGCGC",
-        "match_score": 2,
-        "mismatch_score": -1,
-        "gap_score": -2,
-    }
+    service = JobService(results_root=RESULTS_ROOT)
     reference_payload = {
-        "reference": {"id": "ref", "sequence": "ATGCTAGC"},
+        "reference": {"id": "ref", "sequence": "MEEPQSDPSV"},
         "targets": [
-            {"id": "seq1", "sequence": "ATGCGC"},
-            {"id": "seq2", "sequence": "ATGTTAGC"},
+            {"id": "target_1", "sequence": "MEEPQSEPSI"},
+            {"id": "target_2", "sequence": "MEEPQSGLSV"},
         ],
+        "include_alignments": True,
+        "sequence_type": "protein",
+        "substitution_matrix": "BLOSUM62",
+        "gap_score": -10,
     }
     matrix_payload = {
         "sequences": [
@@ -32,22 +31,13 @@ def main() -> None:
         ],
         "metric": "identity",
     }
-    protein_payload = {
-        "sequence_a": "MEEPQSDPSV",
-        "sequence_b": "MEEPQSEPSI",
-        "sequence_type": "protein",
-        "substitution_matrix": "BLOSUM62",
-        "gap_score": -10,
-    }
     ncbi_lookup_payload = {
         "ids": ["NM_007294"],
         "email": "demo@example.com",
     }
 
-    pairwise_job = service.submit_and_run("pairwise_alignment", pairwise_payload)
     reference_job = service.submit_and_run("reference_similarity_table", reference_payload)
     matrix_job = service.submit_and_run("pairwise_similarity_matrix", matrix_payload)
-    protein_job = service.submit_and_run("pairwise_alignment", protein_payload)
     ncbi_lookup_job = service.submit_and_run("ncbi_refseq_lookup", ncbi_lookup_payload)
 
     print("Available tools")
@@ -55,7 +45,7 @@ def main() -> None:
         print(f"- {tool['name']} v{tool['version']}")
     print()
 
-    for job in [pairwise_job, reference_job, matrix_job, protein_job, ncbi_lookup_job]:
+    for job in [reference_job, matrix_job, ncbi_lookup_job]:
         print_job_output(job)
         print()
 
@@ -69,9 +59,7 @@ def print_job_output(job: Any) -> None:
         print(f"error: {job.error}")
         return
 
-    if job.tool_name == "pairwise_alignment":
-        print_pairwise_result(job.result)
-    elif job.tool_name == "reference_similarity_table":
+    if job.tool_name == "reference_similarity_table":
         print_reference_table(job.result)
     elif job.tool_name == "pairwise_similarity_matrix":
         print_similarity_matrix(job.result)
@@ -83,17 +71,6 @@ def print_job_output(job: Any) -> None:
     print_result_files(Path(job.workdir))
 
 
-def print_pairwise_result(result: dict[str, Any]) -> None:
-    print(result["aligned_sequence_a"])
-    print(match_line(result["aligned_sequence_a"], result["aligned_sequence_b"]))
-    print(result["aligned_sequence_b"])
-    print(
-        "score={score} identity={identity:.4f} similarity={similarity:.4f} gaps={gap_count}".format(
-            **result
-        )
-    )
-
-
 def print_reference_table(result: dict[str, Any]) -> None:
     print(f"reference: {result['reference_id']}")
     print("target_id\tscore\tidentity\tsimilarity\tgaps\tmismatches")
@@ -103,6 +80,10 @@ def print_reference_table(result: dict[str, Any]) -> None:
                 **row
             )
         )
+        if result.get("include_alignments"):
+            print(row["aligned_reference"])
+            print(row["alignment_match_line"])
+            print(row["aligned_target"])
 
 
 def print_similarity_matrix(result: dict[str, Any]) -> None:
@@ -124,15 +105,8 @@ def print_ncbi_lookup(result: dict[str, Any]) -> None:
 
 
 def print_result_files(workdir: Path) -> None:
-    files = sorted(path.name for path in workdir.iterdir() if path.is_file())
     print("files:")
-    for file_name in files:
+    for file_name in list_file_names(workdir):
         print(f"- {workdir / file_name}")
-
-
-def match_line(sequence_a: str, sequence_b: str) -> str:
-    return "".join("|" if a == b else " " for a, b in zip(sequence_a, sequence_b, strict=True))
-
-
 if __name__ == "__main__":
     main()

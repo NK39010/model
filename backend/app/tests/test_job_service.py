@@ -16,16 +16,19 @@ class JobServiceTest(unittest.TestCase):
             service = JobService(results_root=results_root)
 
             job = service.submit_and_run(
-                "pairwise_alignment",
+                "reference_similarity_table",
                 {
-                    "sequence_a": "ACGT",
-                    "sequence_b": "ACCT",
+                    "reference": {"id": "ref", "sequence": "ACGT"},
+                    "targets": [{"id": "target", "sequence": "ACCT"}],
+                    "include_alignments": True,
                 },
             )
 
             self.assertEqual(job.status, JobStatus.COMPLETED)
             self.assertIsNotNone(job.result)
-            self.assertEqual(job.result["alignment_length"], 4)
+            self.assertEqual(job.result["target_count"], 1)
+            self.assertEqual(job.result["rows"][0]["alignment_length"], 4)
+            self.assertIn("aligned_reference", job.result["rows"][0])
             self.assertTrue((results_root / job.id / "job.json").exists())
             self.assertTrue((results_root / job.id / "input.json").exists())
             self.assertTrue((results_root / job.id / "result.json").exists())
@@ -54,9 +57,9 @@ class JobServiceTest(unittest.TestCase):
             service = JobService(results_root=Path(tempdir))
 
             job = service.submit_and_run(
-                "pairwise_alignment",
+                "reference_similarity_table",
                 {
-                    "sequence_a": "ACGT",
+                    "reference": {"id": "ref", "sequence": "ACGT"},
                 },
             )
 

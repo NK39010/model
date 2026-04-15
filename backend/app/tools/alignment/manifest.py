@@ -1,21 +1,10 @@
 # Describes alignment tool modules for discovery and documentation.
 TOOL_MANIFESTS = [
     {
-        "name": "pairwise_alignment",
-        "display_name": "Pairwise Sequence Alignment",
-        "version": "1.0.0",
-        "description": "Align two sequences with a simple global alignment algorithm.",
-        "category": "alignment",
-        "runner": "app.tools.alignment.runner.PairwiseAlignmentRunner",
-        "input_schema": "PairwiseAlignmentInput",
-        "output_schema": "PairwiseAlignmentOutput",
-        "result_files": ["result.json", "alignment.txt"],
-    },
-    {
         "name": "reference_similarity_table",
         "display_name": "Reference Similarity Table",
         "version": "1.0.0",
-        "description": "Compare one reference sequence against multiple target sequences.",
+        "description": "Compare one reference sequence against one or more target sequences.",
         "category": "alignment",
         "runner": "app.tools.alignment.runner.ReferenceSimilarityTableRunner",
         "input_schema": "ReferenceSimilarityInput",
@@ -26,7 +15,7 @@ TOOL_MANIFESTS = [
         "name": "pairwise_similarity_matrix",
         "display_name": "Pairwise Similarity Matrix",
         "version": "1.0.0",
-        "description": "Compare multiple sequences pairwise and emit heatmap-ready data.",
+        "description": "Compare multiple JSON or FASTA sequences pairwise and emit heatmap-ready data.",
         "category": "alignment",
         "runner": "app.tools.alignment.runner.PairwiseSimilarityMatrixRunner",
         "input_schema": "PairwiseMatrixInput",
