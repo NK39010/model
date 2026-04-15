@@ -1,0 +1,11 @@
+# Defines shared job status constants and response helpers.
+from __future__ import annotations
+
+from enum import StrEnum
+
+
+class JobStatus(StrEnum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"

@@ -1,0 +1,7 @@
+# Ignores local Python caches, virtual environments, and generated job outputs.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+data/results/

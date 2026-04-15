@@ -1,0 +1,9 @@
+# Defines the minimal Python project metadata for the backend example.
+[project]
+name = "bio-tool-backend-example"
+version = "0.1.0"
+description = "A minimal modular backend example for bioinformatics tools."
+requires-python = ">=3.11"
+dependencies = [
+    "biopython>=1.83",
+]
