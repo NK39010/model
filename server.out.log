@@ -1,0 +1,6 @@
+Bio tool demo server running at http://127.0.0.1:8000
+API:
+  GET  /api/tools
+  POST /api/jobs
+  GET  /api/jobs/{job_id}
+127.0.0.1 - "GET / HTTP/1.1" 200 -

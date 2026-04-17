@@ -292,7 +292,46 @@
       font-weight: 700;
     }
 
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+
+    .form-grid label {
+      margin-top: 0;
+    }
+
+    .full-row {
+      grid-column: 1 / -1;
+    }
+
+    .quick-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .quick-options button {
+      width: auto;
+      margin-top: 0;
+      padding: 6px 9px;
+      border-color: #8aa19a;
+      color: #1f2933;
+      background: #eef5f2;
+      font-size: 13px;
+    }
+
+    .quick-options button:hover {
+      background: #dfece7;
+    }
+
     @media (max-width: 680px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
       .part-search-row {
         grid-template-columns: 1fr 1fr;
       }
@@ -314,10 +353,266 @@
         <option value="reference_similarity_table">基准序列相似度表</option>
         <option value="pairwise_similarity_matrix">两两相似度矩阵</option>
         <option value="ncbi_refseq_lookup">NCBI 编号查询</option>
+        <option value="ncbi_blast_lookup">NCBI BLAST 查询</option>
+        <option value="primer_design">引物设计</option>
+        <option value="codon_optimization">密码子优化</option>
+        <option value="promoter_selection">启动子选择</option>
+        <option value="resistance_marker_selection">抗性基因选择</option>
         <option value="sequence_parts_parse">GenBank 零件解析</option>
       </select>
 
-      <label for="payload">输入 JSON</label>
+      <div id="blastControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="blastProgram">BLAST 类型</label>
+            <select id="blastProgram">
+              <option value="blastn">blastn</option>
+              <option value="blastp">blastp</option>
+              <option value="blastx">blastx</option>
+              <option value="tblastn">tblastn</option>
+              <option value="tblastx">tblastx</option>
+            </select>
+          </div>
+          <div>
+            <label for="blastDatabase">数据库</label>
+            <input id="blastDatabase" type="text" value="nt">
+          </div>
+          <div>
+            <label for="blastEmail">NCBI 邮箱</label>
+            <input id="blastEmail" type="email" value="your-email@example.com">
+          </div>
+          <div>
+            <label for="blastMaxHits">最多命中数</label>
+            <input id="blastMaxHits" type="number" min="1" max="200" value="20">
+          </div>
+          <div>
+            <label for="blastExpect">E-value</label>
+            <input id="blastExpect" type="number" step="any" min="0" value="1e-10">
+          </div>
+          <div>
+            <label for="blastQueryId">查询 ID</label>
+            <input id="blastQueryId" type="text" value="query_1">
+          </div>
+          <div class="full-row">
+            <label for="blastEntrezQuery">Entrez 过滤，可选</label>
+            <input id="blastEntrezQuery" type="text" placeholder="例如 txid9606[Organism]">
+          </div>
+        </div>
+      </div>
+
+      <div id="primerControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="primerMode">设计类型</label>
+            <select id="primerMode">
+              <option value="vector_construction">载体构建引物</option>
+              <option value="site_mutagenesis">基因突变引物</option>
+            </select>
+          </div>
+          <div>
+            <label for="primerTargetTm">目标退火温度</label>
+            <input id="primerTargetTm" type="number" min="45" max="75" step="0.1" value="60">
+          </div>
+          <div>
+            <label for="primerHomologyLength">同源臂长度</label>
+            <input id="primerHomologyLength" type="number" min="12" max="40" value="20">
+          </div>
+          <div>
+            <label for="primerBindingRange">结合区长度</label>
+            <input id="primerBindingRange" type="text" value="18-25">
+          </div>
+          <div id="mutationPositionField">
+            <label for="mutationPosition">突变起始位点，1-based</label>
+            <input id="mutationPosition" type="number" min="1" value="10">
+          </div>
+          <div id="mutationRefField">
+            <label for="mutationRef">原始片段 ref，可选</label>
+            <input id="mutationRef" type="text" value="G" placeholder="例如 G、GC、GCT、GCTA">
+          </div>
+          <div id="mutationAltField">
+            <label for="mutationAlt">目标片段 alt</label>
+            <input id="mutationAlt" type="text" value="A" placeholder="例如 A、AA、AAA、AAAG">
+          </div>
+          <div id="mutationHelpField" class="full-row">
+            <label for="mutationHelp">突变输入示例</label>
+            <pre id="mutationHelp">单碱基替换：position=10, ref=G, alt=A
+2 bp 替换：position=10, ref=GC, alt=AA
+3 bp 替换：position=10, ref=GCT, alt=AAA
+4 bp 替换：position=10, ref=GCTA, alt=AAAG
+小插入/删除也支持：ref 和 alt 长度可以不同。</pre>
+          </div>
+          <div class="full-row">
+            <label for="primerFormatHelp">参考输入格式</label>
+            <pre id="primerFormatHelp">载体构建：上传线性载体 FASTA + 插入片段 FASTA。
+基因突变：上传基因 FASTA，填写突变起始位点、原始片段 ref、目标片段 alt。</pre>
+          </div>
+        </div>
+      </div>
+
+      <div id="codonControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="codonInputType">输入类型</label>
+            <select id="codonInputType">
+              <option value="cds">CDS DNA</option>
+              <option value="protein">蛋白序列</option>
+            </select>
+          </div>
+          <div>
+            <label for="codonHost">表达宿主</label>
+            <input id="codonHost" type="text" list="hostOptions" value="Escherichia coli" placeholder="输入拉丁学名或选择常用宿主">
+            <div class="quick-options" data-target="codonHost" data-options="Escherichia coli|Saccharomyces cerevisiae|Yarrowia lipolytica|Cricetulus griseus"></div>
+          </div>
+          <div>
+            <label for="codonMinGc">最低 GC</label>
+            <input id="codonMinGc" type="number" min="0.2" max="0.8" step="0.01" value="0.4">
+          </div>
+          <div>
+            <label for="codonMaxGc">最高 GC</label>
+            <input id="codonMaxGc" type="number" min="0.2" max="0.8" step="0.01" value="0.6">
+          </div>
+          <div class="full-row">
+            <label for="codonAvoidSites">避免酶切位点，可选</label>
+            <input id="codonAvoidSites" type="text" value="GAATTC,GGATCC,AAGCTT,CTCGAG" placeholder="例如 GAATTC,GGATCC,AAGCTT,CTCGAG">
+          </div>
+          <label class="part-option full-row">
+            <input id="codonKeepStart" type="checkbox" checked>
+            保留起始 ATG
+          </label>
+          <div class="full-row">
+            <label for="codonFormatHelp">参考输入格式</label>
+            <pre id="codonFormatHelp">CDS DNA：上传长度为 3 的倍数的编码序列 FASTA/文本。
+蛋白序列：上传氨基酸序列 FASTA/文本，工具会反向生成目标宿主偏好的 CDS。
+宿主支持：Escherichia coli、Saccharomyces cerevisiae、Yarrowia lipolytica、Cricetulus griseus / CHO。</pre>
+          </div>
+        </div>
+      </div>
+
+      <div id="promoterControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="promoterHost">宿主</label>
+            <input id="promoterHost" type="text" list="hostOptions" value="Escherichia coli" placeholder="输入拉丁学名或选择常用宿主">
+            <div class="quick-options" data-target="promoterHost" data-options="Escherichia coli|Saccharomyces cerevisiae|Yarrowia lipolytica|Cricetulus griseus|Mammalian general"></div>
+          </div>
+          <div>
+            <label for="promoterStrength">表达强度</label>
+            <select id="promoterStrength">
+              <option value="any">不限</option>
+              <option value="high">强</option>
+              <option value="medium">中</option>
+              <option value="low">弱</option>
+            </select>
+          </div>
+          <div>
+            <label for="promoterRegulation">调控方式</label>
+            <select id="promoterRegulation">
+              <option value="any">不限</option>
+              <option value="constitutive">组成型</option>
+              <option value="inducible">诱导型</option>
+            </select>
+          </div>
+          <div>
+            <label for="promoterMaxResults">最多结果数</label>
+            <input id="promoterMaxResults" type="number" min="1" max="20" value="5">
+          </div>
+          <div>
+            <label for="promoterEmail">NCBI 邮箱</label>
+            <input id="promoterEmail" type="email" value="your-email@example.com">
+          </div>
+          <div>
+            <label for="promoterNcbiMaxRecords">NCBI 拉取记录数</label>
+            <input id="promoterNcbiMaxRecords" type="number" min="1" max="50" value="10">
+          </div>
+          <div class="full-row">
+            <label for="promoterFunction">功能关键词</label>
+            <input id="promoterFunction" type="text" list="promoterFunctionOptions" value="high expression" placeholder="选择常见场景，或输入其他关键词">
+            <div class="quick-options" data-target="promoterFunction" data-options="high expression|stable expression|constitutive expression|inducible expression|IPTG inducible|mammalian expression|yeast expression|lipid metabolism"></div>
+          </div>
+          <div class="full-row">
+            <label for="promoterFormatHelp">说明</label>
+            <pre id="promoterFormatHelp">根据宿主、表达强度、诱导方式和功能关键词筛选启动子，返回候选启动子序列。
+当前版本优先使用内置常用启动子库，适合构建方案初筛；正式合成前建议核对来源序列。</pre>
+          </div>
+        </div>
+      </div>
+
+      <div id="markerControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="markerHost">宿主</label>
+            <input id="markerHost" type="text" list="hostOptions" value="Any organism" placeholder="输入拉丁学名或选择常用宿主">
+            <div class="quick-options" data-target="markerHost" data-options="Any organism|Escherichia coli|Saccharomyces cerevisiae|Yarrowia lipolytica|Cricetulus griseus|Mammalian general"></div>
+          </div>
+          <div>
+            <label for="markerSelection">抗生素/筛选药物</label>
+            <input id="markerSelection" type="text" list="antibioticOptions" value="ampicillin" placeholder="选择常见抗生素，或输入其他关键词">
+            <div class="quick-options" data-target="markerSelection" data-options="ampicillin|kanamycin|chloramphenicol|tetracycline|hygromycin|puromycin|neomycin|G418|zeocin|blasticidin"></div>
+          </div>
+          <div>
+            <label for="markerMaxResults">最多结果数</label>
+            <input id="markerMaxResults" type="number" min="1" max="20" value="5">
+          </div>
+          <div>
+            <label for="markerEmail">NCBI 邮箱</label>
+            <input id="markerEmail" type="email" value="your-email@example.com">
+          </div>
+          <div>
+            <label for="markerNcbiMaxRecords">NCBI 拉取记录数</label>
+            <input id="markerNcbiMaxRecords" type="number" min="1" max="50" value="10">
+          </div>
+          <div class="full-row">
+            <label for="markerFormatHelp">说明</label>
+            <pre id="markerFormatHelp">通过 NCBI Nucleotide 搜索抗性基因，拉取 GenBank 并解析 CDS/gene/misc_feature 序列。
+常用关键词：ampicillin、kanamycin、chloramphenicol、hygromycin、puromycin、neomycin、zeocin、blasticidin。</pre>
+          </div>
+        </div>
+      </div>
+
+      <datalist id="hostOptions">
+        <option value="Any organism"></option>
+        <option value="Escherichia coli"></option>
+        <option value="Saccharomyces cerevisiae"></option>
+        <option value="Yarrowia lipolytica"></option>
+        <option value="Cricetulus griseus"></option>
+        <option value="Chinese hamster ovary"></option>
+        <option value="Mammalian general"></option>
+      </datalist>
+
+      <datalist id="antibioticOptions">
+        <option value="ampicillin"></option>
+        <option value="kanamycin"></option>
+        <option value="chloramphenicol"></option>
+        <option value="tetracycline"></option>
+        <option value="spectinomycin"></option>
+        <option value="streptomycin"></option>
+        <option value="gentamicin"></option>
+        <option value="hygromycin"></option>
+        <option value="puromycin"></option>
+        <option value="neomycin"></option>
+        <option value="G418"></option>
+        <option value="zeocin"></option>
+        <option value="blasticidin"></option>
+      </datalist>
+
+      <datalist id="promoterFunctionOptions">
+        <option value="high expression"></option>
+        <option value="medium expression"></option>
+        <option value="low expression"></option>
+        <option value="stable expression"></option>
+        <option value="transient expression"></option>
+        <option value="constitutive expression"></option>
+        <option value="inducible expression"></option>
+        <option value="IPTG inducible"></option>
+        <option value="T7 polymerase"></option>
+        <option value="mammalian expression"></option>
+        <option value="yeast expression"></option>
+        <option value="lipid metabolism"></option>
+        <option value="methanol inducible"></option>
+        <option value="glucose repressible"></option>
+      </datalist>
+
+      <label id="payloadLabel" for="payload">输入 JSON</label>
       <textarea id="payload"></textarea>
       <div id="fastaGroup">
         <div id="fastaFieldA">
@@ -339,7 +634,7 @@
       <button id="run">运行</button>
     </section>
 
-    <section>
+    <section id="partsSection" class="hidden">
       <h2>零件视图</h2>
       <div id="partsView" class="part-view hidden"></div>
     </section>
@@ -374,6 +669,51 @@
         ids: ["NM_007294"],
         email: "your-email@example.com"
       },
+      ncbi_blast_lookup: {
+        sequence: "",
+        query_id: "query_1",
+        email: "your-email@example.com",
+        program: "blastn",
+        database: "nt",
+        max_hits: 20,
+        expect: 1e-10
+      },
+      primer_design: {
+        mode: "vector_construction",
+        vector_sequence: "",
+        insert_sequence: "",
+        homology_length: 20,
+        min_binding_length: 18,
+        max_binding_length: 25,
+        target_tm: 60
+      },
+      codon_optimization: {
+        input_type: "cds",
+        sequence: "",
+        host: "ecoli",
+        min_gc: 0.4,
+        max_gc: 0.6,
+        avoid_sites: ["GAATTC", "GGATCC", "AAGCTT", "CTCGAG"],
+        keep_start_codon: true
+      },
+      promoter_selection: {
+        host: "ecoli",
+        function: "high expression",
+        strength: "high",
+        regulation: "inducible",
+        max_results: 5,
+        email: "your-email@example.com",
+        use_ncbi: true,
+        ncbi_max_records: 10
+      },
+      resistance_marker_selection: {
+        host: "any",
+        selection: "ampicillin",
+        marker_type: "antibiotic",
+        max_results: 5,
+        email: "your-email@example.com",
+        ncbi_max_records: 10
+      },
       sequence_parts_parse: {
         file_text: "LOCUS       demo_plasmid              60 bp    DNA     circular SYN 01-JAN-2026\nDEFINITION  demo plasmid.\nACCESSION   DEMO0001\nVERSION     DEMO0001.1\nFEATURES             Location/Qualifiers\n     source          1..60\n                     /organism=\"synthetic construct\"\n     promoter        1..10\n                     /label=\"P_demo\"\n     CDS             21..40\n                     /label=\"demo_cds\"\n     terminator      51..60\n                     /label=\"T_demo\"\nORIGIN\n        1 aaaaaaaaaa cccccccccc atgatgatga tgatgatgat gggggggggg tttttttttt\n//\n",
         format: "genbank"
@@ -381,10 +721,53 @@
     };
 
     const tool = document.querySelector("#tool");
+    const payloadLabel = document.querySelector("#payloadLabel");
     const payload = document.querySelector("#payload");
     const output = document.querySelector("#output");
+    const partsSection = document.querySelector("#partsSection");
     const partsView = document.querySelector("#partsView");
     const run = document.querySelector("#run");
+    const blastControls = document.querySelector("#blastControls");
+    const blastProgram = document.querySelector("#blastProgram");
+    const blastDatabase = document.querySelector("#blastDatabase");
+    const blastEmail = document.querySelector("#blastEmail");
+    const blastMaxHits = document.querySelector("#blastMaxHits");
+    const blastExpect = document.querySelector("#blastExpect");
+    const blastQueryId = document.querySelector("#blastQueryId");
+    const blastEntrezQuery = document.querySelector("#blastEntrezQuery");
+    const primerControls = document.querySelector("#primerControls");
+    const primerMode = document.querySelector("#primerMode");
+    const primerTargetTm = document.querySelector("#primerTargetTm");
+    const primerHomologyLength = document.querySelector("#primerHomologyLength");
+    const primerBindingRange = document.querySelector("#primerBindingRange");
+    const mutationPositionField = document.querySelector("#mutationPositionField");
+    const mutationRefField = document.querySelector("#mutationRefField");
+    const mutationAltField = document.querySelector("#mutationAltField");
+    const mutationHelpField = document.querySelector("#mutationHelpField");
+    const mutationPosition = document.querySelector("#mutationPosition");
+    const mutationRef = document.querySelector("#mutationRef");
+    const mutationAlt = document.querySelector("#mutationAlt");
+    const codonControls = document.querySelector("#codonControls");
+    const codonInputType = document.querySelector("#codonInputType");
+    const codonHost = document.querySelector("#codonHost");
+    const codonMinGc = document.querySelector("#codonMinGc");
+    const codonMaxGc = document.querySelector("#codonMaxGc");
+    const codonAvoidSites = document.querySelector("#codonAvoidSites");
+    const codonKeepStart = document.querySelector("#codonKeepStart");
+    const promoterControls = document.querySelector("#promoterControls");
+    const promoterHost = document.querySelector("#promoterHost");
+    const promoterStrength = document.querySelector("#promoterStrength");
+    const promoterRegulation = document.querySelector("#promoterRegulation");
+    const promoterMaxResults = document.querySelector("#promoterMaxResults");
+    const promoterFunction = document.querySelector("#promoterFunction");
+    const promoterEmail = document.querySelector("#promoterEmail");
+    const promoterNcbiMaxRecords = document.querySelector("#promoterNcbiMaxRecords");
+    const markerControls = document.querySelector("#markerControls");
+    const markerHost = document.querySelector("#markerHost");
+    const markerSelection = document.querySelector("#markerSelection");
+    const markerMaxResults = document.querySelector("#markerMaxResults");
+    const markerEmail = document.querySelector("#markerEmail");
+    const markerNcbiMaxRecords = document.querySelector("#markerNcbiMaxRecords");
     const fastaGroup = document.querySelector("#fastaGroup");
     const fastaFieldA = document.querySelector("#fastaFieldA");
     const fastaFieldB = document.querySelector("#fastaFieldB");
@@ -413,13 +796,298 @@
       fastaFileB.value = "";
       genbankFile.value = "";
       clearPartsView();
+      loadBlastControls();
+      loadPrimerControls();
+      loadCodonControls();
+      loadPromoterControls();
+      loadMarkerControls();
       updateFileInputs();
       updateFileStatus();
       updateGenBankStatus();
     }
 
     tool.addEventListener("change", loadExample);
+    blastProgram.addEventListener("change", () => {
+      if (blastProgram.value === "blastn") {
+        if (!blastDatabase.value || blastDatabase.value === "nr") {
+          blastDatabase.value = "nt";
+        }
+      } else if (!blastDatabase.value || blastDatabase.value === "nt") {
+        blastDatabase.value = "nr";
+      }
+    });
+    primerMode.addEventListener("change", updatePrimerModeControls);
+    setupQuickOptions();
     loadExample();
+
+    function setupQuickOptions() {
+      document.querySelectorAll(".quick-options").forEach((container) => {
+        const target = document.querySelector(`#${container.dataset.target}`);
+        const options = (container.dataset.options || "").split("|").filter(Boolean);
+        container.innerHTML = "";
+        for (const option of options) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = option;
+          button.addEventListener("click", () => {
+            target.value = option;
+            target.dispatchEvent(new Event("input", { bubbles: true }));
+            target.dispatchEvent(new Event("change", { bubbles: true }));
+          });
+          container.appendChild(button);
+        }
+      });
+    }
+
+    function loadBlastControls() {
+      const data = examples.ncbi_blast_lookup;
+      blastProgram.value = data.program;
+      blastDatabase.value = data.database;
+      blastEmail.value = data.email;
+      blastMaxHits.value = data.max_hits;
+      blastExpect.value = data.expect;
+      blastQueryId.value = data.query_id;
+      blastEntrezQuery.value = data.entrez_query || "";
+    }
+
+    function loadPrimerControls() {
+      const data = examples.primer_design;
+      primerMode.value = data.mode;
+      primerTargetTm.value = data.target_tm;
+      primerHomologyLength.value = data.homology_length;
+      primerBindingRange.value = `${data.min_binding_length}-${data.max_binding_length}`;
+      updatePrimerModeControls();
+    }
+
+    function loadCodonControls() {
+      const data = examples.codon_optimization;
+      codonInputType.value = data.input_type;
+      codonHost.value = data.host;
+      codonMinGc.value = data.min_gc;
+      codonMaxGc.value = data.max_gc;
+      codonAvoidSites.value = data.avoid_sites.join(",");
+      codonKeepStart.checked = data.keep_start_codon;
+    }
+
+    function loadPromoterControls() {
+      const data = examples.promoter_selection;
+      promoterHost.value = data.host;
+      promoterStrength.value = data.strength;
+      promoterRegulation.value = data.regulation;
+      promoterMaxResults.value = data.max_results;
+      promoterFunction.value = data.function;
+      promoterEmail.value = data.email;
+      promoterNcbiMaxRecords.value = data.ncbi_max_records;
+    }
+
+    function loadMarkerControls() {
+      const data = examples.resistance_marker_selection;
+      markerHost.value = data.host;
+      markerSelection.value = data.selection;
+      markerMaxResults.value = data.max_results;
+      markerEmail.value = data.email;
+      markerNcbiMaxRecords.value = data.ncbi_max_records;
+    }
+
+    function updatePrimerModeControls() {
+      const isMutation = primerMode.value === "site_mutagenesis";
+      mutationPositionField.classList.toggle("hidden", !isMutation);
+      mutationRefField.classList.toggle("hidden", !isMutation);
+      mutationAltField.classList.toggle("hidden", !isMutation);
+      mutationHelpField.classList.toggle("hidden", !isMutation);
+      if (tool.value === "primer_design") {
+        if (isMutation) {
+          fastaLabelA.textContent = "基因片段 FASTA/序列文件";
+          fastaFieldB.classList.add("hidden");
+          fastaFileB.value = "";
+        } else {
+          fastaLabelA.textContent = "线性载体 FASTA/序列文件";
+          fastaLabelB.textContent = "插入片段 FASTA/序列文件";
+          fastaFieldB.classList.remove("hidden");
+        }
+        updateFileStatus();
+      }
+    }
+
+    async function buildRequestPayload() {
+      if (tool.value === "ncbi_blast_lookup") {
+        return payloadWithSelectedBlastFile(true);
+      }
+      if (tool.value === "primer_design") {
+        return payloadWithSelectedPrimerFiles(true);
+      }
+      if (tool.value === "codon_optimization") {
+        return payloadWithSelectedCodonFile(true);
+      }
+      if (tool.value === "promoter_selection") {
+        return buildPromoterPayload();
+      }
+      if (tool.value === "resistance_marker_selection") {
+        return buildMarkerPayload();
+      }
+
+      let requestPayload = await payloadWithSelectedFasta(true);
+      if (tool.value === "sequence_parts_parse") {
+        requestPayload = await payloadWithSelectedGenBank(true);
+      }
+      return requestPayload;
+    }
+
+    async function payloadWithSelectedBlastFile(strict = true) {
+      const file = fastaFileA.files[0];
+      if (!file) {
+        if (strict) {
+          throw new Error("NCBI BLAST 需要上传一个 FASTA 或纯序列文本文件。");
+        }
+        return buildBlastPayload("");
+      }
+
+      const text = await file.text();
+      const records = text.trim().startsWith(">") ? parseFasta(text) : [];
+      if (records.length) {
+        const queryId = blastQueryId.value.trim() || records[0].id || "query_1";
+        blastQueryId.value = queryId;
+        return buildBlastPayload(records[0].sequence, queryId);
+      }
+
+      const sequence = text.replace(/\s+/g, "").toUpperCase();
+      return buildBlastPayload(sequence);
+    }
+
+    function buildBlastPayload(sequence, queryId = "") {
+      const data = {
+        sequence,
+        query_id: queryId || blastQueryId.value.trim() || "query_1",
+        email: blastEmail.value.trim(),
+        program: blastProgram.value,
+        database: blastDatabase.value.trim(),
+        max_hits: Number(blastMaxHits.value || 20),
+        expect: Number(blastExpect.value || 1e-10)
+      };
+      const entrezQuery = blastEntrezQuery.value.trim();
+      if (entrezQuery) {
+        data.entrez_query = entrezQuery;
+      }
+      if (data.program === "blastn") {
+        data.megablast = true;
+      }
+      return data;
+    }
+
+    async function payloadWithSelectedPrimerFiles(strict = true) {
+      const mode = primerMode.value;
+      const fileA = fastaFileA.files[0];
+      const fileB = fastaFileB.files[0];
+
+      if (mode === "vector_construction") {
+        if (!fileA || !fileB) {
+          if (!strict) {
+            return buildPrimerPayload({});
+          }
+          throw new Error("载体构建引物需要上传线性载体文件和插入片段文件。");
+        }
+        return buildPrimerPayload({
+          vector_sequence: sequenceFromText(await fileA.text()),
+          insert_sequence: sequenceFromText(await fileB.text())
+        });
+      }
+
+      if (!fileA) {
+        if (!strict) {
+          return buildPrimerPayload({});
+        }
+        throw new Error("基因突变引物需要上传基因片段文件。");
+      }
+      const ref = normalizeDnaInput(mutationRef.value);
+      const alt = normalizeDnaInput(mutationAlt.value);
+      if (!alt) {
+        throw new Error("目标片段 alt 不能为空，例如 A、AA、AAA 或 AAAG。");
+      }
+      return buildPrimerPayload({
+        gene_sequence: sequenceFromText(await fileA.text()),
+        mutation: {
+          position: Number(mutationPosition.value),
+          ref: ref || undefined,
+          alt
+        }
+      });
+    }
+
+    function buildPrimerPayload(extra) {
+      const [minBinding, maxBinding] = primerBindingRange.value
+        .split("-")
+        .map((item) => Number(item.trim()));
+      return {
+        mode: primerMode.value,
+        homology_length: Number(primerHomologyLength.value || 20),
+        min_binding_length: minBinding || 18,
+        max_binding_length: maxBinding || 25,
+        target_tm: Number(primerTargetTm.value || 60),
+        ...extra
+      };
+    }
+
+    function sequenceFromText(text) {
+      const records = text.trim().startsWith(">") ? parseFasta(text) : [];
+      if (records.length) {
+        return records[0].sequence;
+      }
+      return text.replace(/\s+/g, "").toUpperCase();
+    }
+
+    function normalizeDnaInput(value) {
+      return value.replace(/\s+/g, "").toUpperCase();
+    }
+
+    async function payloadWithSelectedCodonFile(strict = true) {
+      const file = fastaFileA.files[0];
+      if (!file) {
+        if (!strict) {
+          return buildCodonPayload("");
+        }
+        throw new Error("密码子优化需要上传一个 CDS 或蛋白序列文件。");
+      }
+      return buildCodonPayload(sequenceFromText(await file.text()));
+    }
+
+    function buildCodonPayload(sequence) {
+      return {
+        input_type: codonInputType.value,
+        sequence,
+        host: codonHost.value,
+        min_gc: Number(codonMinGc.value || 0.4),
+        max_gc: Number(codonMaxGc.value || 0.6),
+        avoid_sites: codonAvoidSites.value
+          .split(",")
+          .map((item) => normalizeDnaInput(item))
+          .filter(Boolean),
+        keep_start_codon: codonKeepStart.checked
+      };
+    }
+
+    function buildPromoterPayload() {
+      return {
+        host: promoterHost.value,
+        function: promoterFunction.value.trim(),
+        strength: promoterStrength.value,
+        regulation: promoterRegulation.value,
+        max_results: Number(promoterMaxResults.value || 5),
+        email: promoterEmail.value.trim(),
+        use_ncbi: true,
+        ncbi_max_records: Number(promoterNcbiMaxRecords.value || 10)
+      };
+    }
+
+    function buildMarkerPayload() {
+      return {
+        host: markerHost.value,
+        selection: markerSelection.value.trim(),
+        marker_type: "antibiotic",
+        max_results: Number(markerMaxResults.value || 5),
+        email: markerEmail.value.trim(),
+        ncbi_max_records: Number(markerNcbiMaxRecords.value || 10)
+      };
+    }
 
     async function payloadWithSelectedFasta(strict = true) {
       const data = JSON.parse(payload.value);
@@ -450,9 +1118,21 @@
         data.fasta = await fileA.text();
         delete data.sequences;
         data.metric = data.metric || "similarity";
+      } else if (tool.value === "ncbi_blast_lookup") {
+        if (!fileA) {
+          return data;
+        }
+        const text = await fileA.text();
+        const records = text.trim().startsWith(">") ? parseFasta(text) : [];
+        if (records.length) {
+          data.query_id = data.query_id || records[0].id;
+          data.sequence = records[0].sequence;
+        } else {
+          data.sequence = text.replace(/\s+/g, "").toUpperCase();
+        }
       }
 
-      if (tool.value !== "ncbi_refseq_lookup" && tool.value !== "sequence_parts_parse") {
+      if (!["ncbi_refseq_lookup", "ncbi_blast_lookup", "sequence_parts_parse"].includes(tool.value)) {
         data.sequence_type = data.sequence_type || "protein";
         data.substitution_matrix = data.substitution_matrix || "BLOSUM62";
         data.gap_score = data.gap_score ?? -10;
@@ -479,6 +1159,24 @@
     }
 
     async function applySelectedFastaToPayload() {
+      if (tool.value === "ncbi_blast_lookup") {
+        const data = await payloadWithSelectedBlastFile(false);
+        payload.value = JSON.stringify(data, null, 2);
+        updateFileStatus();
+        return;
+      }
+      if (tool.value === "primer_design") {
+        const data = await payloadWithSelectedPrimerFiles(false);
+        payload.value = JSON.stringify(data, null, 2);
+        updateFileStatus();
+        return;
+      }
+      if (tool.value === "codon_optimization") {
+        const data = await payloadWithSelectedCodonFile(false);
+        payload.value = JSON.stringify(data, null, 2);
+        updateFileStatus();
+        return;
+      }
       const data = await payloadWithSelectedFasta(false);
       payload.value = JSON.stringify(data, null, 2);
       updateFileStatus();
@@ -499,6 +1197,13 @@
       fastaFieldA.classList.remove("hidden");
       fastaFieldB.classList.remove("hidden");
       genbankGroup.classList.add("hidden");
+      blastControls.classList.add("hidden");
+      primerControls.classList.add("hidden");
+      codonControls.classList.add("hidden");
+      promoterControls.classList.add("hidden");
+      markerControls.classList.add("hidden");
+      payloadLabel.classList.remove("hidden");
+      payload.classList.remove("hidden");
 
       if (tool.value === "reference_similarity_table") {
         fastaLabelA.textContent = "基准序列 FASTA，可选";
@@ -506,6 +1211,39 @@
       } else if (tool.value === "pairwise_similarity_matrix") {
         fastaLabelA.textContent = "多序列 FASTA，可选";
         fastaFieldB.classList.add("hidden");
+        fastaFileB.value = "";
+      } else if (tool.value === "ncbi_blast_lookup") {
+        blastControls.classList.remove("hidden");
+        payloadLabel.classList.add("hidden");
+        payload.classList.add("hidden");
+        fastaLabelA.textContent = "BLAST FASTA/序列文件";
+        fastaFieldB.classList.add("hidden");
+        fastaFileB.value = "";
+      } else if (tool.value === "primer_design") {
+        primerControls.classList.remove("hidden");
+        payloadLabel.classList.add("hidden");
+        payload.classList.add("hidden");
+        updatePrimerModeControls();
+      } else if (tool.value === "codon_optimization") {
+        codonControls.classList.remove("hidden");
+        payloadLabel.classList.add("hidden");
+        payload.classList.add("hidden");
+        fastaLabelA.textContent = "CDS/蛋白 FASTA/序列文件";
+        fastaFieldB.classList.add("hidden");
+        fastaFileB.value = "";
+      } else if (tool.value === "promoter_selection") {
+        promoterControls.classList.remove("hidden");
+        payloadLabel.classList.add("hidden");
+        payload.classList.add("hidden");
+        fastaGroup.classList.add("hidden");
+        fastaFileA.value = "";
+        fastaFileB.value = "";
+      } else if (tool.value === "resistance_marker_selection") {
+        markerControls.classList.remove("hidden");
+        payloadLabel.classList.add("hidden");
+        payload.classList.add("hidden");
+        fastaGroup.classList.add("hidden");
+        fastaFileA.value = "";
         fastaFileB.value = "";
       } else if (tool.value === "ncbi_refseq_lookup" || tool.value === "sequence_parts_parse") {
         fastaGroup.classList.add("hidden");
@@ -521,6 +1259,34 @@
     function updateFileStatus() {
       if (fastaGroup.classList.contains("hidden")) {
         fileStatus.textContent = "";
+        return;
+      }
+
+      if (tool.value === "ncbi_blast_lookup") {
+        fileStatus.textContent = fastaFileA.files[0]
+          ? `已选择: ${fastaFileA.files[0].name}`
+          : "未选择 BLAST 序列文件。";
+        return;
+      }
+
+      if (tool.value === "primer_design") {
+        const parts = [];
+        if (fastaFileA.files[0]) {
+          parts.push(primerMode.value === "site_mutagenesis"
+            ? `基因片段: ${fastaFileA.files[0].name}`
+            : `线性载体: ${fastaFileA.files[0].name}`);
+        }
+        if (primerMode.value === "vector_construction" && fastaFileB.files[0]) {
+          parts.push(`插入片段: ${fastaFileB.files[0].name}`);
+        }
+        fileStatus.textContent = parts.length ? parts.join("；") : "未选择引物设计输入文件。";
+        return;
+      }
+
+      if (tool.value === "codon_optimization") {
+        fileStatus.textContent = fastaFileA.files[0]
+          ? `已选择: ${fastaFileA.files[0].name}`
+          : "未选择密码子优化输入文件。";
         return;
       }
 
@@ -548,10 +1314,7 @@
     run.addEventListener("click", async () => {
       output.textContent = "运行中...";
       try {
-        let requestPayload = await payloadWithSelectedFasta(true);
-        if (tool.value === "sequence_parts_parse") {
-          requestPayload = await payloadWithSelectedGenBank(true);
-        }
+        const requestPayload = await buildRequestPayload();
         payload.value = JSON.stringify(requestPayload, null, 2);
         const response = await fetch("/api/jobs", {
           method: "POST",
@@ -570,6 +1333,130 @@
     });
 
     function formatOutput(data) {
+      if (data.tool_name === "ncbi_blast_lookup" && data.result) {
+        const result = data.result;
+        const lines = [
+          `status: ${data.status}`,
+          `query: ${result.query?.id || ""} | ${result.query?.length || 0} aa/bp`,
+          `program: ${result.program}`,
+          `database: ${result.database}`,
+          `hits: ${result.hit_count}`,
+          "",
+          "rank\taccession\tidentity\tcoverage\tevalue\tdefinition"
+        ];
+        for (const hit of result.hits || []) {
+          const hsp = hit.best_hsp || {};
+          lines.push([
+            hit.rank,
+            hit.accession || "",
+            formatPercent(hsp.identity_pct),
+            formatPercent(hsp.query_coverage),
+            hsp.evalue ?? "",
+            hit.definition || ""
+          ].join("\t"));
+        }
+        lines.push("", JSON.stringify(data, null, 2));
+        return lines.join("\n");
+      }
+
+      if (data.tool_name === "primer_design" && data.result) {
+        const result = data.result;
+        const lines = [
+          `status: ${data.status}`,
+          `mode: ${result.mode}`,
+          `primers: ${result.primer_count}`,
+          "",
+          "name\tlength\tTm\tGC%\tsequence\twarnings"
+        ];
+        for (const primer of result.primers || []) {
+          lines.push([
+            primer.name,
+            primer.length,
+            primer.tm,
+            primer.gc_percent,
+            primer.sequence,
+            (primer.warnings || []).join("; ")
+          ].join("\t"));
+        }
+        lines.push("", JSON.stringify(data, null, 2));
+        return lines.join("\n");
+      }
+
+      if (data.tool_name === "codon_optimization" && data.result) {
+        const result = data.result;
+        const metrics = result.metrics || {};
+        const lines = [
+          `status: ${data.status}`,
+          `host: ${result.host}`,
+          `input type: ${result.input_type}`,
+          `protein length: ${metrics.protein_length}`,
+          `optimized GC: ${metrics.optimized_gc_percent}%`,
+          `CAI-like: ${metrics.cai_like}`,
+          `replacement count: ${metrics.replacement_count}`,
+          "",
+          "optimized CDS:",
+          result.optimized_sequence,
+          "",
+          "warnings:",
+          ...(result.warnings && result.warnings.length ? result.warnings : ["none"]),
+          "",
+          JSON.stringify(data, null, 2)
+        ];
+        return lines.join("\n");
+      }
+
+      if (data.tool_name === "promoter_selection" && data.result) {
+        const result = data.result;
+        const lines = [
+          `status: ${data.status}`,
+          `host: ${result.query.host}`,
+          `function: ${result.query.function || ""}`,
+          `candidates: ${result.candidate_count}`,
+          "",
+          "name\tstrength\tregulation\tlength\tGC%\tscore\tnotes"
+        ];
+        for (const candidate of result.candidates || []) {
+          lines.push([
+            candidate.name,
+            candidate.strength,
+            candidate.regulation,
+            candidate.length,
+            (candidate.gc_content * 100).toFixed(2),
+            candidate.score,
+            candidate.notes
+          ].join("\t"));
+          lines.push(candidate.sequence);
+        }
+        lines.push("", JSON.stringify(data, null, 2));
+        return lines.join("\n");
+      }
+
+      if (data.tool_name === "resistance_marker_selection" && data.result) {
+        const result = data.result;
+        const lines = [
+          `status: ${data.status}`,
+          `host: ${result.query.host}`,
+          `antibiotic/drug: ${result.query.selection || ""}`,
+          `candidates: ${result.candidate_count}`,
+          "",
+          "name\tantibiotic/drug\tlength\tGC%\tscore\tconfidence\tnotes"
+        ];
+        for (const candidate of result.candidates || []) {
+          lines.push([
+            candidate.name,
+            candidate.selection || "",
+            candidate.length,
+            (candidate.gc_content * 100).toFixed(2),
+            candidate.score,
+            candidate.confidence,
+            candidate.notes
+          ].join("\t"));
+          lines.push(candidate.sequence);
+        }
+        lines.push("", JSON.stringify(data, null, 2));
+        return lines.join("\n");
+      }
+
       if (data.tool_name === "sequence_parts_parse" && data.result && data.result.parts) {
         const lines = [
           `${data.result.record_id} | ${data.result.topology} | ${data.result.sequence_length} bp`,
@@ -586,9 +1473,17 @@
       return JSON.stringify(data, null, 2);
     }
 
+    function formatPercent(value) {
+      if (typeof value !== "number") {
+        return "";
+      }
+      return `${(value * 100).toFixed(2)}%`;
+    }
+
     function clearPartsView() {
       partsView.innerHTML = "";
       partsView.classList.add("hidden");
+      partsSection.classList.add("hidden");
       currentPartsResult = null;
     }
 
@@ -601,6 +1496,7 @@
       const result = data.result;
       currentPartsResult = result;
       partViewState.hiddenPartIds = new Set();
+      partsSection.classList.remove("hidden");
       partsView.classList.remove("hidden");
       partsView.appendChild(partControls());
       partsView.appendChild(partSummary(result));
@@ -940,6 +1836,39 @@
         linker: "#cfd8d3"
       };
       return colors[type] || "#ffffff";
+    }
+
+    function parseFasta(text) {
+      const records = [];
+      let currentId = "";
+      let currentLines = [];
+
+      for (const rawLine of text.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line) {
+          continue;
+        }
+        if (line.startsWith(">")) {
+          if (currentId) {
+            records.push({
+              id: currentId,
+              sequence: currentLines.join("").replace(/\s+/g, "").toUpperCase()
+            });
+          }
+          currentId = line.slice(1).trim().split(/\s+/)[0] || "query_1";
+          currentLines = [];
+        } else {
+          currentLines.push(line);
+        }
+      }
+
+      if (currentId) {
+        records.push({
+          id: currentId,
+          sequence: currentLines.join("").replace(/\s+/g, "").toUpperCase()
+        });
+      }
+      return records.filter((record) => record.sequence);
     }
 
     function escapeHtml(value) {

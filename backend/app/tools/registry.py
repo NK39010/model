@@ -6,8 +6,13 @@ from app.tools.alignment.runner import (
     ReferenceSimilarityTableRunner,
 )
 from app.tools.base import ToolRunner
+from app.tools.blast.runner import NCBIBlastLookupRunner
+from app.tools.codon_optimization.runner import CodonOptimizationRunner
 from app.tools.errors import ToolInputError
 from app.tools.ncbi.runner import NCBIRefSeqLookupRunner
+from app.tools.primer_design.runner import PrimerDesignRunner
+from app.tools.promoter_selection.runner import PromoterSelectionRunner
+from app.tools.resistance_marker_selection.runner import ResistanceMarkerSelectionRunner
 from app.tools.sequence_parts.runner import SequencePartsParseRunner
 
 
@@ -15,6 +20,11 @@ TOOL_REGISTRY: dict[str, ToolRunner] = {
     ReferenceSimilarityTableRunner.name: ReferenceSimilarityTableRunner(),
     PairwiseSimilarityMatrixRunner.name: PairwiseSimilarityMatrixRunner(),
     NCBIRefSeqLookupRunner.name: NCBIRefSeqLookupRunner(),
+    NCBIBlastLookupRunner.name: NCBIBlastLookupRunner(),
+    CodonOptimizationRunner.name: CodonOptimizationRunner(),
+    PrimerDesignRunner.name: PrimerDesignRunner(),
+    PromoterSelectionRunner.name: PromoterSelectionRunner(),
+    ResistanceMarkerSelectionRunner.name: ResistanceMarkerSelectionRunner(),
     SequencePartsParseRunner.name: SequencePartsParseRunner(),
 }
 

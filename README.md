@@ -45,6 +45,8 @@ PYTHONPATH=backend .venv/bin/python backend/app/main.py
 ```bash
 PYTHONPATH=backend .venv/bin/python backend/app/main.py 8010
 ```
+$env:PYTHONPATH='backend'
+.\.venv\Scripts\python.exe -u backend/app/main.py
 
 打开终端打印的地址：
 
