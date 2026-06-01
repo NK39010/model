@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 
 ROOT = Path.cwd()
@@ -15,6 +15,7 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(ROOT / "frontend" / "index.html"), "frontend"),
+        *collect_data_files("Bio.Align"),
     ],
     hiddenimports=[
         *collect_submodules("app"),

@@ -20,7 +20,21 @@ Write-Host "  $Root\dist\BioToolBackend\BioToolBackend.exe"
 
 if ($Installer) {
     $iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    $isccPath = if ($iscc) { $iscc.Source } else { $null }
     if (-not $iscc) {
+        $candidatePaths = @(
+            "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+        )
+        foreach ($candidatePath in $candidatePaths) {
+            if (Test-Path $candidatePath) {
+                $isccPath = $candidatePath
+                break
+            }
+        }
+    }
+    if (-not $isccPath) {
         Write-Host ""
         Write-Host "Inno Setup ISCC.exe was not found. Install Inno Setup, then run:"
         Write-Host "  ISCC.exe packaging\installer.iss"
@@ -28,7 +42,7 @@ if ($Installer) {
     }
 
     Write-Host "Building installer with Inno Setup..."
-    & $iscc.Source "packaging\installer.iss"
+    & $isccPath "packaging\installer.iss"
     Write-Host "Installer:"
     Write-Host "  $Root\dist\installer\BioToolBackendSetup.exe"
 }
