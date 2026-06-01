@@ -9,7 +9,7 @@ TOOL_MANIFESTS = [
         "runner": "app.tools.alignment.runner.ReferenceSimilarityTableRunner",
         "input_schema": "ReferenceSimilarityInput",
         "output_schema": "ReferenceSimilarityOutput",
-        "result_files": ["result.json", "similarity_table.csv"],
+        "result_files": ["result.json", "similarity_table.csv", "similarity_report.txt"],
     },
     {
         "name": "pairwise_similarity_matrix",

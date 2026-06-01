@@ -100,8 +100,14 @@ class PairwiseAlignmentRunnerTest(unittest.TestCase):
             self.assertEqual(len(result["rows"]), 2)
             self.assertEqual(result["rows"][0]["target_id"], "seq1")
             self.assertIn("identity", result["rows"][0])
+            self.assertEqual(result["files"]["txt"], "similarity_report.txt")
             self.assertTrue((workdir / "result.json").exists())
             self.assertTrue((workdir / "similarity_table.csv").exists())
+            report = workdir / "similarity_report.txt"
+            self.assertTrue(report.exists())
+            report_text = report.read_text(encoding="utf-8")
+            self.assertIn("Reference similarity report", report_text)
+            self.assertIn("seq1", report_text)
 
     def test_reference_similarity_table_runner_can_include_alignments(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
@@ -124,6 +130,10 @@ class PairwiseAlignmentRunnerTest(unittest.TestCase):
             self.assertEqual(result["rows"][0]["aligned_reference"], "MEEPQSDPSV")
             self.assertEqual(result["rows"][0]["aligned_target"], "MEEPQSEPSI")
             self.assertIn("alignment_match_line", result["rows"][0])
+            report_text = (workdir / "similarity_report.txt").read_text(encoding="utf-8")
+            self.assertIn("ref vs target_1", report_text)
+            self.assertIn("reference: MEEPQSDPSV", report_text)
+            self.assertIn("target:    MEEPQSEPSI", report_text)
 
     def test_reference_similarity_table_runner_accepts_two_fasta_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

@@ -93,6 +93,30 @@
       line-height: 1.45;
     }
 
+    .file-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 12px;
+    }
+
+    .file-links a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 10px;
+      border: 1px solid #9fb0aa;
+      border-radius: 6px;
+      color: #12584f;
+      background: #ffffff;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .file-links a:hover {
+      background: #eaf3f0;
+    }
+
     .hidden {
       display: none !important;
     }
@@ -945,6 +969,7 @@ geneB	ATGGGCCCAA</textarea>
 
     <section>
       <h2>输出</h2>
+      <div id="resultFiles" class="file-links hidden"></div>
       <pre id="output">等待提交任务。</pre>
     </section>
   </main>
@@ -1054,6 +1079,7 @@ geneB	ATGGGCCCAA</textarea>
     const payloadLabel = document.querySelector("#payloadLabel");
     const payload = document.querySelector("#payload");
     const output = document.querySelector("#output");
+    const resultFiles = document.querySelector("#resultFiles");
     const partsSection = document.querySelector("#partsSection");
     const partsView = document.querySelector("#partsView");
     const run = document.querySelector("#run");
@@ -2132,6 +2158,7 @@ geneB	ATGGGCCCAA</textarea>
 
     run.addEventListener("click", async () => {
       output.textContent = "运行中...";
+      clearResultFiles();
       try {
         if (tool.value === "colony_count" && colonyImageFile.files.length > 1) {
           await runColonyBatch();
@@ -2150,8 +2177,10 @@ geneB	ATGGGCCCAA</textarea>
         const data = await response.json();
         renderPartsView(data);
         renderColonyResult(data);
+        renderResultFiles(data);
         output.textContent = formatOutput(data);
       } catch (error) {
+        clearResultFiles();
         output.textContent = String(error);
       }
     });
@@ -2366,6 +2395,35 @@ geneB	ATGGGCCCAA</textarea>
         return lines.join("\n");
       }
       return JSON.stringify(data, null, 2);
+    }
+
+    function clearResultFiles() {
+      resultFiles.innerHTML = "";
+      resultFiles.classList.add("hidden");
+    }
+
+    function renderResultFiles(data) {
+      clearResultFiles();
+      if (!data.id || !data.result || data.status !== "completed") {
+        return;
+      }
+
+      const files = data.result.files || {};
+      const entries = Object.entries(files).filter(([, fileName]) => typeof fileName === "string" && fileName);
+      if (!entries.length) {
+        return;
+      }
+
+      for (const [label, fileName] of entries) {
+        const link = document.createElement("a");
+        link.href = `/api/jobs/${data.id}/files/${encodeURIComponent(fileName)}`;
+        link.download = fileName;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = `${label}: ${fileName}`;
+        resultFiles.appendChild(link);
+      }
+      resultFiles.classList.remove("hidden");
     }
 
     function formatPercent(value) {

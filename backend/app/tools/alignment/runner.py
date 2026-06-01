@@ -111,11 +111,21 @@ class ReferenceSimilarityTableRunner(ToolRunner):
             "files": {
                 "json": "result.json",
                 "csv": "similarity_table.csv",
+                "txt": "similarity_report.txt",
             },
         }
 
         write_json(workdir / "result.json", result)
         write_csv(workdir / "similarity_table.csv", rows)
+        write_text(
+            workdir / "similarity_report.txt",
+            _reference_similarity_report(
+                reference_id=data.reference.id,
+                target_count=len(data.targets),
+                include_alignments=data.include_alignments,
+                rows=rows,
+            ),
+        )
         return self.parse_result(workdir)
 
     def parse_result(self, workdir: Path) -> dict[str, Any]:
@@ -207,3 +217,69 @@ class PairwiseSimilarityMatrixRunner(ToolRunner):
 
 def _match_line(sequence_a: str, sequence_b: str) -> str:
     return "".join("|" if a == b else " " for a, b in zip(sequence_a, sequence_b, strict=True))
+
+
+def _reference_similarity_report(
+    reference_id: str,
+    target_count: int,
+    include_alignments: bool,
+    rows: list[dict[str, Any]],
+) -> str:
+    headers = [
+        "target_id",
+        "score",
+        "identity",
+        "similarity",
+        "length",
+        "matches",
+        "mismatches",
+        "gaps",
+    ]
+    table_rows = [
+        [
+            str(row["target_id"]),
+            str(row["score"]),
+            f"{row['identity']:.2%}",
+            f"{row['similarity']:.2%}",
+            str(row["alignment_length"]),
+            str(row["match_count"]),
+            str(row["mismatch_count"]),
+            str(row["gap_count"]),
+        ]
+        for row in rows
+    ]
+    widths = [
+        max(len(headers[index]), *(len(table_row[index]) for table_row in table_rows))
+        if table_rows
+        else len(header)
+        for index, header in enumerate(headers)
+    ]
+
+    lines = [
+        "Reference similarity report",
+        f"reference_id: {reference_id}",
+        f"target_count: {target_count}",
+        f"include_alignments: {include_alignments}",
+        "",
+        _format_report_row(headers, widths),
+        _format_report_row(["-" * width for width in widths], widths),
+    ]
+    lines.extend(_format_report_row(table_row, widths) for table_row in table_rows)
+
+    if include_alignments:
+        lines.extend(["", "Alignments"])
+        for row in rows:
+            lines.extend(
+                [
+                    "",
+                    f"{reference_id} vs {row['target_id']}",
+                    f"reference: {row['aligned_reference']}",
+                    f"           {row['alignment_match_line']}",
+                    f"target:    {row['aligned_target']}",
+                ]
+            )
+    return "\n".join(lines) + "\n"
+
+
+def _format_report_row(values: list[str], widths: list[int]) -> str:
+    return "  ".join(value.ljust(width) for value, width in zip(values, widths, strict=True))
