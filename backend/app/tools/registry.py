@@ -7,8 +7,10 @@ from app.tools.alignment.runner import (
 )
 from app.tools.base import ToolRunner
 from app.tools.blast.runner import NCBIBlastLookupRunner
+from app.tools.colony_count.runner import ColonyCountRunner
 from app.tools.codon_optimization.runner import CodonOptimizationRunner
 from app.tools.errors import ToolInputError
+from app.tools.fasta_generator.runner import FastaGeneratorRunner
 from app.tools.ncbi.runner import NCBIRefSeqLookupRunner
 from app.tools.primer_design.runner import PrimerDesignRunner
 from app.tools.promoter_selection.runner import PromoterSelectionRunner
@@ -21,7 +23,9 @@ TOOL_REGISTRY: dict[str, ToolRunner] = {
     PairwiseSimilarityMatrixRunner.name: PairwiseSimilarityMatrixRunner(),
     NCBIRefSeqLookupRunner.name: NCBIRefSeqLookupRunner(),
     NCBIBlastLookupRunner.name: NCBIBlastLookupRunner(),
+    ColonyCountRunner.name: ColonyCountRunner(),
     CodonOptimizationRunner.name: CodonOptimizationRunner(),
+    FastaGeneratorRunner.name: FastaGeneratorRunner(),
     PrimerDesignRunner.name: PrimerDesignRunner(),
     PromoterSelectionRunner.name: PromoterSelectionRunner(),
     ResistanceMarkerSelectionRunner.name: ResistanceMarkerSelectionRunner(),
