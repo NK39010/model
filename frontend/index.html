@@ -327,6 +327,133 @@
       background: #dfece7;
     }
 
+    .image-result {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      margin-top: 14px;
+    }
+
+    .image-result figure {
+      margin: 0;
+    }
+
+    .image-result img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid #bccbc6;
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    .image-result figcaption {
+      margin-top: 6px;
+      color: #334e56;
+      font-weight: 700;
+    }
+
+    .sample-picker {
+      display: grid;
+      gap: 10px;
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid #c7d4d0;
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    .sample-picker-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .sample-picker-actions button {
+      width: auto;
+      margin-top: 0;
+      padding: 8px 12px;
+      background: #2f5f70;
+    }
+
+    .sample-picker canvas {
+      width: 100%;
+      max-height: 520px;
+      border: 1px solid #9fb0aa;
+      border-radius: 6px;
+      background: #101820;
+      cursor: crosshair;
+    }
+
+    .sample-preview {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: #334e56;
+      font-weight: 700;
+    }
+
+    .sample-preview img {
+      width: 88px;
+      height: 88px;
+      object-fit: contain;
+      border: 1px solid #bccbc6;
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    .batch-table {
+      width: 100%;
+      margin-top: 14px;
+      border-collapse: collapse;
+      background: #ffffff;
+    }
+
+    .batch-table th,
+    .batch-table td {
+      padding: 9px;
+      border: 1px solid #c7d4d0;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .batch-table th {
+      background: #e8f0ed;
+    }
+
+    .batch-table a {
+      color: #196f63;
+      font-weight: 700;
+    }
+
+    .tool-help {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid #c7d4d0;
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    .tool-help h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .tool-help ul {
+      margin: 8px 0 0;
+      padding-left: 20px;
+      color: #334e56;
+      line-height: 1.55;
+    }
+
+    .field-note {
+      margin: 6px 0 0;
+      color: #6b7c85;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
     @media (max-width: 680px) {
       .form-grid {
         grid-template-columns: 1fr;
@@ -338,6 +465,10 @@
 
       .part-search-row input {
         grid-column: 1 / -1;
+      }
+
+      .image-result {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -359,7 +490,38 @@
         <option value="promoter_selection">启动子选择</option>
         <option value="resistance_marker_selection">抗性基因选择</option>
         <option value="sequence_parts_parse">GenBank 零件解析</option>
+        <option value="fasta_generator">FASTA 生成器</option>
+        <option value="colony_count">菌落计数</option>
       </select>
+
+      <div id="toolHelp" class="tool-help"></div>
+
+      <div id="alignmentControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="alignmentSequenceType">序列类型</label>
+            <select id="alignmentSequenceType">
+              <option value="dna">DNA</option>
+              <option value="protein">Protein</option>
+            </select>
+            <p class="field-note">DNA 用于核酸序列；Protein 用于氨基酸序列。</p>
+          </div>
+          <div class="hidden">
+            <label for="alignmentSubstitutionMatrix">蛋白替换矩阵</label>
+            <input id="alignmentSubstitutionMatrix" type="text" value="BLOSUM62">
+          </div>
+          <div>
+            <label for="alignmentGapScore">Gap 惩罚</label>
+            <input id="alignmentGapScore" type="number" step="1" value="-2">
+            <p class="field-note">插入/缺失的扣分。DNA 常用 -2；蛋白常用 -10。越负越不允许 gap。</p>
+          </div>
+          <label id="includeAlignmentsOption" class="part-option">
+            <input id="alignmentIncludeAlignments" type="checkbox">
+            输出比对详情
+            <span class="field-note">会在结果中加入对齐后的序列和匹配线，文件更长但便于检查。</span>
+          </label>
+        </div>
+      </div>
 
       <div id="blastControls" class="hidden">
         <div class="form-grid">
@@ -372,30 +534,37 @@
               <option value="tblastn">tblastn</option>
               <option value="tblastx">tblastx</option>
             </select>
+            <p class="field-note">blastn 查 DNA；blastp 查蛋白；blastx 会把 DNA 翻译成蛋白再查。</p>
           </div>
           <div>
             <label for="blastDatabase">数据库</label>
             <input id="blastDatabase" type="text" value="nt">
+            <p class="field-note">blastn 常用 nt；blastp 常用 nr。</p>
           </div>
           <div>
             <label for="blastEmail">NCBI 邮箱</label>
             <input id="blastEmail" type="email" value="your-email@example.com">
+            <p class="field-note">NCBI 建议填写真实邮箱，用于接口访问规范。</p>
           </div>
           <div>
             <label for="blastMaxHits">最多命中数</label>
             <input id="blastMaxHits" type="number" min="1" max="200" value="20">
+            <p class="field-note">控制返回结果数量；越大可能等待越久。</p>
           </div>
           <div>
             <label for="blastExpect">E-value</label>
             <input id="blastExpect" type="number" step="any" min="0" value="1e-10">
+            <p class="field-note">越小越严格；1e-10 比 1e-5 更严格。</p>
           </div>
           <div>
             <label for="blastQueryId">查询 ID</label>
             <input id="blastQueryId" type="text" value="query_1">
+            <p class="field-note">结果中显示的查询名称；上传 FASTA 时会自动取第一条 ID。</p>
           </div>
           <div class="full-row">
             <label for="blastEntrezQuery">Entrez 过滤，可选</label>
             <input id="blastEntrezQuery" type="text" placeholder="例如 txid9606[Organism]">
+            <p class="field-note">限定搜索范围，例如 txid562[Organism] 可限定大肠杆菌。</p>
           </div>
         </div>
       </div>
@@ -569,6 +738,116 @@
         </div>
       </div>
 
+      <div id="colonyControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="colonyMinArea">最小面积</label>
+            <input id="colonyMinArea" type="number" min="1" value="20">
+            <p class="field-note">小于该像素面积会被当作噪点；漏小菌落时调小，噪点多时调大。</p>
+          </div>
+          <div>
+            <label for="colonyMaxArea">最大面积</label>
+            <input id="colonyMaxArea" type="number" min="1" value="5000">
+            <p class="field-note">大于该面积的区域会被过滤；大菌落漏检时调大。</p>
+          </div>
+          <div>
+            <label for="colonyCircularity">圆度阈值</label>
+            <input id="colonyCircularity" type="number" min="0" max="1" step="0.01" value="0.35">
+            <p class="field-note">越高越要求接近圆形；不规则菌落漏检时调低。</p>
+          </div>
+          <div>
+            <label for="colonyThresholdMode">阈值模式</label>
+            <select id="colonyThresholdMode">
+              <option value="otsu">Otsu</option>
+              <option value="adaptive">Adaptive</option>
+            </select>
+            <p class="field-note">Otsu 适合光照均匀；Adaptive 适合光照不均，但可能抓到背景纹理。</p>
+          </div>
+          <div>
+            <label for="colonyColorMode">颜色模式</label>
+            <select id="colonyColorMode">
+              <option value="auto">自动</option>
+              <option value="target">指定颜色</option>
+              <option value="sample">样例截图</option>
+            </select>
+            <p class="field-note">自动按亮/暗斑识别；指定颜色或样例截图会按颜色相似度识别。</p>
+          </div>
+          <div>
+            <label for="colonyTargetColor">目标颜色</label>
+            <input id="colonyTargetColor" type="color" value="#f0ead1">
+            <p class="field-note">颜色模式为“指定颜色”时使用。</p>
+          </div>
+          <div>
+            <label for="colonyColorTolerance">颜色容差</label>
+            <input id="colonyColorTolerance" type="number" min="1" max="120" step="1" value="38">
+            <p class="field-note">越大越宽松，可能识别背景；越小越严格，可能漏检。</p>
+          </div>
+          <div>
+            <label for="colonySplitSensitivity">粘连敏感度</label>
+            <input id="colonySplitSensitivity" type="number" min="0.05" max="0.95" step="0.01" value="0.45">
+            <p class="field-note">越低越容易拆分粘连菌落；越高越保守。</p>
+          </div>
+          <div>
+            <label for="colonyEdgeMargin">边缘屏蔽比例</label>
+            <input id="colonyEdgeMargin" type="number" min="0" max="0.25" step="0.01" value="0.03">
+            <p class="field-note">屏蔽培养皿边缘，减少反光、边框和字迹误识别。</p>
+          </div>
+          <label class="part-option">
+            <input id="colonyInvert" type="checkbox">
+            识别深色菌落
+            <span class="field-note">菌落比培养基更暗时开启。</span>
+          </label>
+          <label class="part-option">
+            <input id="colonySplitTouching" type="checkbox" checked>
+            拆分粘连菌落
+            <span class="field-note">尝试把连在一起的大区域拆成多个菌落。</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="fastaGeneratorControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="fastaGeneratorMode">输入方式</label>
+            <select id="fastaGeneratorMode">
+              <option value="manual">手动输入</option>
+              <option value="table">Excel/CSV 表格</option>
+            </select>
+            <p class="field-note">手动输入每行一条；表格模式读取第一列名称、第二列序列。</p>
+          </div>
+          <div>
+            <label for="fastaGeneratorType">序列类型</label>
+            <select id="fastaGeneratorType">
+              <option value="dna">DNA</option>
+              <option value="rna">RNA</option>
+              <option value="protein">Protein</option>
+              <option value="auto">Auto</option>
+            </select>
+            <p class="field-note">影响允许字符；不确定时可用 Auto。</p>
+          </div>
+          <div>
+            <label for="fastaGeneratorWrap">每行长度，可留空</label>
+            <input id="fastaGeneratorWrap" type="number" min="40" max="200" value="80" placeholder="留空则不换行">
+            <p class="field-note">填数字则按长度换行；留空则每条序列输出为一整行。</p>
+          </div>
+          <label class="part-option">
+            <input id="fastaGeneratorStrict" type="checkbox">
+            严格校验
+            <span class="field-note">开启后遇到非法字符会报错；关闭时会自动移除非法字符。</span>
+          </label>
+          <div id="fastaManualGroup" class="full-row">
+            <label for="fastaManualText">手动输入：每行一条，名称和序列用 Tab 或逗号分隔</label>
+            <textarea id="fastaManualText">geneA	ATGCGTACGT
+geneB	ATGGGCCCAA</textarea>
+          </div>
+          <div id="fastaTableGroup" class="full-row hidden">
+            <label for="fastaTableFile">Excel/CSV/TSV 表格：第一列名称，第二列序列</label>
+            <input id="fastaTableFile" type="file" accept=".xlsx,.csv,.tsv,.txt">
+            <p id="fastaTableStatus">未选择表格文件。</p>
+          </div>
+        </div>
+      </div>
+
       <datalist id="hostOptions">
         <option value="Any organism"></option>
         <option value="Escherichia coli"></option>
@@ -612,8 +891,8 @@
         <option value="glucose repressible"></option>
       </datalist>
 
-      <label id="payloadLabel" for="payload">输入 JSON</label>
-      <textarea id="payload"></textarea>
+      <label id="payloadLabel" class="hidden" for="payload">输入 JSON</label>
+      <textarea id="payload" class="hidden"></textarea>
       <div id="fastaGroup">
         <div id="fastaFieldA">
           <label id="fastaLabelA" for="fastaFileA">FASTA 输入 1，可选</label>
@@ -630,6 +909,25 @@
         <input id="genbankFile" type="file" accept=".gb,.gbk,.genbank,.dna,.txt">
         <p id="genbankStatus">未选择 GenBank 文件。</p>
       </div>
+      <div id="imageGroup" class="hidden">
+        <label for="colonyImageFile">平板图片</label>
+        <input id="colonyImageFile" type="file" accept="image/png,image/jpeg,image/webp" multiple>
+        <p id="imageStatus">未选择平板图片。</p>
+        <label for="colonySampleFile">菌落样例截图，可选</label>
+        <input id="colonySampleFile" type="file" accept="image/png,image/jpeg,image/webp">
+        <p id="sampleStatus">未选择样例截图。</p>
+        <div id="samplePicker" class="sample-picker hidden">
+          <div class="sample-picker-actions">
+            <button id="loadSamplePicker" type="button">从平板图框选样例</button>
+            <button id="clearSampleSelection" type="button">清除框选</button>
+          </div>
+          <canvas id="sampleCanvas"></canvas>
+          <div class="sample-preview">
+            <img id="samplePreview" class="hidden" alt="框选样例预览">
+            <span id="sampleSelectionStatus">拖拽框选一个典型菌落区域。</span>
+          </div>
+        </div>
+      </div>
 
       <button id="run">运行</button>
     </section>
@@ -637,6 +935,12 @@
     <section id="partsSection" class="hidden">
       <h2>零件视图</h2>
       <div id="partsView" class="part-view hidden"></div>
+    </section>
+
+    <section id="colonySection" class="hidden">
+      <h2>菌落计数结果</h2>
+      <p id="colonySummary" class="part-summary"></p>
+      <div id="colonyImages" class="image-result"></div>
     </section>
 
     <section>
@@ -717,16 +1021,48 @@
       sequence_parts_parse: {
         file_text: "LOCUS       demo_plasmid              60 bp    DNA     circular SYN 01-JAN-2026\nDEFINITION  demo plasmid.\nACCESSION   DEMO0001\nVERSION     DEMO0001.1\nFEATURES             Location/Qualifiers\n     source          1..60\n                     /organism=\"synthetic construct\"\n     promoter        1..10\n                     /label=\"P_demo\"\n     CDS             21..40\n                     /label=\"demo_cds\"\n     terminator      51..60\n                     /label=\"T_demo\"\nORIGIN\n        1 aaaaaaaaaa cccccccccc atgatgatga tgatgatgat gggggggggg tttttttttt\n//\n",
         format: "genbank"
+      },
+      fasta_generator: {
+        mode: "manual",
+        records: [
+          { name: "geneA", sequence: "ATGCGTACGT" },
+          { name: "geneB", sequence: "ATGGGCCCAA" }
+        ],
+        sequence_type: "dna",
+        strict: false,
+        wrap_length: 80
+      },
+      colony_count: {
+        image_data_url: "",
+        min_area: 20,
+        max_area: 5000,
+        circularity_threshold: 0.35,
+        threshold_mode: "otsu",
+        invert: false,
+        split_touching: true,
+        split_sensitivity: 0.45,
+        edge_margin_ratio: 0.03,
+        color_mode: "auto",
+        target_color: "#f0ead1",
+        color_tolerance: 38,
+        sample_image_data_url: ""
       }
     };
 
     const tool = document.querySelector("#tool");
+    const toolHelp = document.querySelector("#toolHelp");
     const payloadLabel = document.querySelector("#payloadLabel");
     const payload = document.querySelector("#payload");
     const output = document.querySelector("#output");
     const partsSection = document.querySelector("#partsSection");
     const partsView = document.querySelector("#partsView");
     const run = document.querySelector("#run");
+    const alignmentControls = document.querySelector("#alignmentControls");
+    const alignmentSequenceType = document.querySelector("#alignmentSequenceType");
+    const alignmentSubstitutionMatrix = document.querySelector("#alignmentSubstitutionMatrix");
+    const alignmentGapScore = document.querySelector("#alignmentGapScore");
+    const includeAlignmentsOption = document.querySelector("#includeAlignmentsOption");
+    const alignmentIncludeAlignments = document.querySelector("#alignmentIncludeAlignments");
     const blastControls = document.querySelector("#blastControls");
     const blastProgram = document.querySelector("#blastProgram");
     const blastDatabase = document.querySelector("#blastDatabase");
@@ -768,6 +1104,28 @@
     const markerMaxResults = document.querySelector("#markerMaxResults");
     const markerEmail = document.querySelector("#markerEmail");
     const markerNcbiMaxRecords = document.querySelector("#markerNcbiMaxRecords");
+    const fastaGeneratorControls = document.querySelector("#fastaGeneratorControls");
+    const fastaGeneratorMode = document.querySelector("#fastaGeneratorMode");
+    const fastaGeneratorType = document.querySelector("#fastaGeneratorType");
+    const fastaGeneratorWrap = document.querySelector("#fastaGeneratorWrap");
+    const fastaGeneratorStrict = document.querySelector("#fastaGeneratorStrict");
+    const fastaManualGroup = document.querySelector("#fastaManualGroup");
+    const fastaManualText = document.querySelector("#fastaManualText");
+    const fastaTableGroup = document.querySelector("#fastaTableGroup");
+    const fastaTableFile = document.querySelector("#fastaTableFile");
+    const fastaTableStatus = document.querySelector("#fastaTableStatus");
+    const colonyControls = document.querySelector("#colonyControls");
+    const colonyMinArea = document.querySelector("#colonyMinArea");
+    const colonyMaxArea = document.querySelector("#colonyMaxArea");
+    const colonyCircularity = document.querySelector("#colonyCircularity");
+    const colonyThresholdMode = document.querySelector("#colonyThresholdMode");
+    const colonyColorMode = document.querySelector("#colonyColorMode");
+    const colonyTargetColor = document.querySelector("#colonyTargetColor");
+    const colonyColorTolerance = document.querySelector("#colonyColorTolerance");
+    const colonySplitSensitivity = document.querySelector("#colonySplitSensitivity");
+    const colonyEdgeMargin = document.querySelector("#colonyEdgeMargin");
+    const colonyInvert = document.querySelector("#colonyInvert");
+    const colonySplitTouching = document.querySelector("#colonySplitTouching");
     const fastaGroup = document.querySelector("#fastaGroup");
     const fastaFieldA = document.querySelector("#fastaFieldA");
     const fastaFieldB = document.querySelector("#fastaFieldB");
@@ -779,6 +1137,20 @@
     const genbankGroup = document.querySelector("#genbankGroup");
     const genbankFile = document.querySelector("#genbankFile");
     const genbankStatus = document.querySelector("#genbankStatus");
+    const imageGroup = document.querySelector("#imageGroup");
+    const colonyImageFile = document.querySelector("#colonyImageFile");
+    const colonySampleFile = document.querySelector("#colonySampleFile");
+    const imageStatus = document.querySelector("#imageStatus");
+    const sampleStatus = document.querySelector("#sampleStatus");
+    const samplePicker = document.querySelector("#samplePicker");
+    const loadSamplePicker = document.querySelector("#loadSamplePicker");
+    const clearSampleSelection = document.querySelector("#clearSampleSelection");
+    const sampleCanvas = document.querySelector("#sampleCanvas");
+    const samplePreview = document.querySelector("#samplePreview");
+    const sampleSelectionStatus = document.querySelector("#sampleSelectionStatus");
+    const colonySection = document.querySelector("#colonySection");
+    const colonySummary = document.querySelector("#colonySummary");
+    const colonyImages = document.querySelector("#colonyImages");
     let currentPartsResult = null;
     const partViewState = {
       search: "",
@@ -789,6 +1161,62 @@
       enlargeCommon: true,
       hiddenPartIds: new Set()
     };
+    const toolDescriptions = {
+      reference_similarity_table: {
+        title: "基准序列相似度表",
+        summary: "把一条基准序列与一组目标序列逐一比对，输出 identity、similarity、score 和比对长度。适合筛选哪个序列最接近参考序列。"
+      },
+      pairwise_similarity_matrix: {
+        title: "两两相似度矩阵",
+        summary: "对一个多序列 FASTA 内的所有序列做两两比较，生成矩阵和长表，适合做聚类、热图或整体相似度概览。"
+      },
+      ncbi_refseq_lookup: {
+        title: "NCBI 编号查询",
+        summary: "根据 RefSeq 或 GenBank 编号拉取基础记录信息。适合快速核对 accession 对应的序列记录。"
+      },
+      ncbi_blast_lookup: {
+        title: "NCBI BLAST 查询",
+        summary: "把上传的序列提交到 NCBI BLAST，返回命中 accession、identity、coverage、e-value 和描述。"
+      },
+      primer_design: {
+        title: "引物设计",
+        summary: "支持载体构建引物和定点突变引物。第一版使用可解释的 Tm、GC 和同源臂规则生成候选引物。"
+      },
+      codon_optimization: {
+        title: "密码子优化",
+        summary: "根据宿主偏好把 CDS 或蛋白序列转换为更适合表达的 CDS，并控制 GC 和避开限制性酶切位点。"
+      },
+      promoter_selection: {
+        title: "启动子选择",
+        summary: "按宿主、表达强度、诱导方式和功能关键词筛选候选启动子，适合构建方案初筛。"
+      },
+      resistance_marker_selection: {
+        title: "抗性基因选择",
+        summary: "按宿主和抗生素/筛选药物搜索候选抗性标记，返回序列和基础评分。"
+      },
+      sequence_parts_parse: {
+        title: "GenBank 零件解析",
+        summary: "解析 GenBank 文件中的 promoter、CDS、terminator、origin 等 feature，并生成线性/环形可视化零件视图。未注释区间会自动补为 linker。"
+      },
+      fasta_generator: {
+        title: "FASTA 生成器",
+        summary: "把手动输入或 Excel/CSV/TSV 表格转换成标准 FASTA，适合给 BLAST、相似度表、引物设计等工具准备输入文件。"
+      },
+      colony_count: {
+        title: "菌落计数",
+        summary: "对平板图片进行培养皿定位、颜色/亮度分割、连通域计数和粘连拆分，输出菌落数、坐标、标注图和 CSV。支持批量图片。"
+      }
+    };
+    const sampleSelectionState = {
+      image: null,
+      imageDataUrl: "",
+      cropDataUrl: "",
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      isDragging: false
+    };
 
     function loadExample() {
       payload.value = JSON.stringify(examples[tool.value], null, 2);
@@ -796,14 +1224,20 @@
       fastaFileB.value = "";
       genbankFile.value = "";
       clearPartsView();
+      clearColonyResult();
       loadBlastControls();
       loadPrimerControls();
       loadCodonControls();
       loadPromoterControls();
       loadMarkerControls();
+      loadAlignmentControls();
+      loadFastaGeneratorControls();
+      loadColonyControls();
       updateFileInputs();
+      updateToolHelp();
       updateFileStatus();
       updateGenBankStatus();
+      updateImageStatus();
     }
 
     tool.addEventListener("change", loadExample);
@@ -816,6 +1250,7 @@
         blastDatabase.value = "nr";
       }
     });
+    alignmentSequenceType.addEventListener("change", updateAlignmentModeControls);
     primerMode.addEventListener("change", updatePrimerModeControls);
     setupQuickOptions();
     loadExample();
@@ -837,6 +1272,39 @@
           container.appendChild(button);
         }
       });
+    }
+
+    function updateToolHelp() {
+      const description = toolDescriptions[tool.value];
+      if (!description) {
+        toolHelp.innerHTML = "";
+        return;
+      }
+      toolHelp.innerHTML = `
+        <h2>${escapeHtml(description.title)}</h2>
+        <p>${escapeHtml(description.summary)}</p>
+      `;
+    }
+
+    function loadAlignmentControls() {
+      const data = examples[tool.value] || {};
+      alignmentSequenceType.value = data.sequence_type || "dna";
+      alignmentSubstitutionMatrix.value = data.substitution_matrix || "BLOSUM62";
+      alignmentGapScore.value = data.gap_score ?? (alignmentSequenceType.value === "protein" ? -10 : -2);
+      alignmentIncludeAlignments.checked = Boolean(data.include_alignments);
+      updateAlignmentModeControls();
+    }
+
+    function updateAlignmentModeControls() {
+      const isProtein = alignmentSequenceType.value === "protein";
+      alignmentSubstitutionMatrix.disabled = !isProtein;
+      if (isProtein && !alignmentSubstitutionMatrix.value.trim()) {
+        alignmentSubstitutionMatrix.value = "BLOSUM62";
+      }
+      if (!alignmentGapScore.value) {
+        alignmentGapScore.value = isProtein ? "-10" : "-2";
+      }
+      includeAlignmentsOption.classList.toggle("hidden", tool.value !== "reference_similarity_table");
     }
 
     function loadBlastControls() {
@@ -889,6 +1357,31 @@
       markerNcbiMaxRecords.value = data.ncbi_max_records;
     }
 
+    function loadFastaGeneratorControls() {
+      const data = examples.fasta_generator;
+      fastaGeneratorMode.value = data.mode;
+      fastaGeneratorType.value = data.sequence_type;
+      fastaGeneratorWrap.value = data.wrap_length;
+      fastaGeneratorStrict.checked = data.strict;
+      fastaManualText.value = data.records.map((record) => `${record.name}\t${record.sequence}`).join("\n");
+      updateFastaGeneratorModeControls();
+    }
+
+    function loadColonyControls() {
+      const data = examples.colony_count;
+      colonyMinArea.value = data.min_area;
+      colonyMaxArea.value = data.max_area;
+      colonyCircularity.value = data.circularity_threshold;
+      colonyThresholdMode.value = data.threshold_mode;
+      colonyColorMode.value = data.color_mode;
+      colonyTargetColor.value = data.target_color;
+      colonyColorTolerance.value = data.color_tolerance;
+      colonyInvert.checked = data.invert;
+      colonySplitTouching.checked = data.split_touching;
+      colonySplitSensitivity.value = data.split_sensitivity;
+      colonyEdgeMargin.value = data.edge_margin_ratio;
+    }
+
     function updatePrimerModeControls() {
       const isMutation = primerMode.value === "site_mutagenesis";
       mutationPositionField.classList.toggle("hidden", !isMutation);
@@ -925,12 +1418,32 @@
       if (tool.value === "resistance_marker_selection") {
         return buildMarkerPayload();
       }
+      if (tool.value === "fasta_generator") {
+        return buildFastaGeneratorPayload();
+      }
+      if (tool.value === "colony_count") {
+        return buildColonyPayload();
+      }
 
       let requestPayload = await payloadWithSelectedFasta(true);
       if (tool.value === "sequence_parts_parse") {
         requestPayload = await payloadWithSelectedGenBank(true);
       }
       return requestPayload;
+    }
+
+    function applyAlignmentSettings(data) {
+      data.sequence_type = alignmentSequenceType.value;
+      data.gap_score = Number(alignmentGapScore.value || (alignmentSequenceType.value === "protein" ? -10 : -2));
+      if (alignmentSequenceType.value === "protein") {
+        data.substitution_matrix = alignmentSubstitutionMatrix.value.trim() || "BLOSUM62";
+      } else {
+        delete data.substitution_matrix;
+      }
+      if (tool.value === "reference_similarity_table") {
+        data.include_alignments = alignmentIncludeAlignments.checked;
+      }
+      return data;
     }
 
     async function payloadWithSelectedBlastFile(strict = true) {
@@ -1089,6 +1602,82 @@
       };
     }
 
+    async function buildFastaGeneratorPayload() {
+      const data = {
+        mode: fastaGeneratorMode.value,
+        sequence_type: fastaGeneratorType.value,
+        strict: fastaGeneratorStrict.checked,
+        wrap_length: fastaGeneratorWrap.value ? Number(fastaGeneratorWrap.value) : null
+      };
+      if (fastaGeneratorMode.value === "manual") {
+        data.records = parseManualFastaRows(fastaManualText.value);
+      } else {
+        const file = fastaTableFile.files[0];
+        if (!file) {
+          throw new Error("表格模式需要上传 Excel、CSV 或 TSV 文件。");
+        }
+        data.file_name = file.name;
+        data.file_data_url = await readFileAsDataUrl(file);
+        data.has_header = "auto";
+      }
+      return data;
+    }
+
+    function parseManualFastaRows(text) {
+      return text
+        .split(/\n+/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const parts = line.includes("\t") ? line.split("\t") : line.split(",");
+          return {
+            name: (parts[0] || "").trim(),
+            sequence: parts.slice(1).join("").trim()
+          };
+        });
+    }
+
+    async function buildColonyPayload(fileOverride = null) {
+      const file = fileOverride || colonyImageFile.files[0];
+      if (!file) {
+        throw new Error("菌落计数需要上传一张平板图片。");
+      }
+      const data = {
+        image_data_url: await readFileAsDataUrl(file),
+        min_area: Number(colonyMinArea.value || 20),
+        max_area: Number(colonyMaxArea.value || 5000),
+        circularity_threshold: Number(colonyCircularity.value || 0.35),
+        threshold_mode: colonyThresholdMode.value,
+        invert: colonyInvert.checked,
+        split_touching: colonySplitTouching.checked,
+        split_sensitivity: Number(colonySplitSensitivity.value || 0.45),
+        edge_margin_ratio: Number(colonyEdgeMargin.value || 0.03),
+        color_mode: colonyColorMode.value,
+        target_color: colonyTargetColor.value,
+        color_tolerance: Number(colonyColorTolerance.value || 38)
+      };
+      if (colonyColorMode.value === "sample") {
+        const sampleFile = colonySampleFile.files[0];
+        if (sampleSelectionState.cropDataUrl) {
+          data.sample_image_data_url = sampleSelectionState.cropDataUrl;
+        } else if (sampleFile) {
+          data.sample_image_data_url = await readFileAsDataUrl(sampleFile);
+        } else {
+          throw new Error("样例截图颜色模式需要上传样例截图，或在平板图上框选一个菌落区域。");
+        }
+      }
+      return data;
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener("load", () => resolve(reader.result));
+        reader.addEventListener("error", () => reject(reader.error));
+        reader.readAsDataURL(file);
+      });
+    }
+
     async function payloadWithSelectedFasta(strict = true) {
       const data = JSON.parse(payload.value);
       const fileA = fastaFileA.files[0];
@@ -1133,11 +1722,12 @@
       }
 
       if (!["ncbi_refseq_lookup", "ncbi_blast_lookup", "sequence_parts_parse"].includes(tool.value)) {
-        data.sequence_type = data.sequence_type || "protein";
-        data.substitution_matrix = data.substitution_matrix || "BLOSUM62";
-        data.gap_score = data.gap_score ?? -10;
-        if (tool.value === "reference_similarity_table") {
-          data.include_alignments = data.include_alignments ?? true;
+        if (tool.value === "reference_similarity_table" || tool.value === "pairwise_similarity_matrix") {
+          applyAlignmentSettings(data);
+        } else {
+          data.sequence_type = data.sequence_type || "protein";
+          data.substitution_matrix = data.substitution_matrix || "BLOSUM62";
+          data.gap_score = data.gap_score ?? -10;
         }
       }
       return data;
@@ -1191,24 +1781,41 @@
     fastaFileA.addEventListener("change", applySelectedFastaToPayload);
     fastaFileB.addEventListener("change", applySelectedFastaToPayload);
     genbankFile.addEventListener("change", applySelectedGenBankToPayload);
+    fastaGeneratorMode.addEventListener("change", updateFastaGeneratorModeControls);
+    fastaTableFile.addEventListener("change", updateFastaTableStatus);
+    colonyImageFile.addEventListener("change", handleColonyImageChange);
+    colonySampleFile.addEventListener("change", updateImageStatus);
+    colonyColorMode.addEventListener("change", updateSamplePickerVisibility);
+    loadSamplePicker.addEventListener("click", loadSamplePickerCanvas);
+    clearSampleSelection.addEventListener("click", clearSampleSelectionState);
+    sampleCanvas.addEventListener("pointerdown", startSampleSelection);
+    sampleCanvas.addEventListener("pointermove", moveSampleSelection);
+    sampleCanvas.addEventListener("pointerup", finishSampleSelection);
+    sampleCanvas.addEventListener("pointerleave", finishSampleSelection);
 
     function updateFileInputs() {
       fastaGroup.classList.remove("hidden");
       fastaFieldA.classList.remove("hidden");
       fastaFieldB.classList.remove("hidden");
       genbankGroup.classList.add("hidden");
+      imageGroup.classList.add("hidden");
+      alignmentControls.classList.add("hidden");
       blastControls.classList.add("hidden");
       primerControls.classList.add("hidden");
       codonControls.classList.add("hidden");
       promoterControls.classList.add("hidden");
       markerControls.classList.add("hidden");
-      payloadLabel.classList.remove("hidden");
-      payload.classList.remove("hidden");
+      fastaGeneratorControls.classList.add("hidden");
+      colonyControls.classList.add("hidden");
+      payloadLabel.classList.add("hidden");
+      payload.classList.add("hidden");
 
       if (tool.value === "reference_similarity_table") {
+        alignmentControls.classList.remove("hidden");
         fastaLabelA.textContent = "基准序列 FASTA，可选";
         fastaLabelB.textContent = "目标序列 FASTA，可选";
       } else if (tool.value === "pairwise_similarity_matrix") {
+        alignmentControls.classList.remove("hidden");
         fastaLabelA.textContent = "多序列 FASTA，可选";
         fastaFieldB.classList.add("hidden");
         fastaFileB.value = "";
@@ -1245,6 +1852,21 @@
         fastaGroup.classList.add("hidden");
         fastaFileA.value = "";
         fastaFileB.value = "";
+      } else if (tool.value === "fasta_generator") {
+        fastaGeneratorControls.classList.remove("hidden");
+        payloadLabel.classList.add("hidden");
+        payload.classList.add("hidden");
+        fastaGroup.classList.add("hidden");
+        fastaFileA.value = "";
+        fastaFileB.value = "";
+      } else if (tool.value === "colony_count") {
+        colonyControls.classList.remove("hidden");
+        imageGroup.classList.remove("hidden");
+        payloadLabel.classList.add("hidden");
+        payload.classList.add("hidden");
+        fastaGroup.classList.add("hidden");
+        fastaFileA.value = "";
+        fastaFileB.value = "";
       } else if (tool.value === "ncbi_refseq_lookup" || tool.value === "sequence_parts_parse") {
         fastaGroup.classList.add("hidden");
         fastaFileA.value = "";
@@ -1254,6 +1876,24 @@
       if (tool.value === "sequence_parts_parse") {
         genbankGroup.classList.remove("hidden");
       }
+      updateFastaGeneratorModeControls();
+      updateAlignmentModeControls();
+    }
+
+    function updateFastaGeneratorModeControls() {
+      const isTable = fastaGeneratorMode.value === "table";
+      fastaManualGroup.classList.toggle("hidden", isTable);
+      fastaTableGroup.classList.toggle("hidden", !isTable);
+      updateFastaTableStatus();
+    }
+
+    function updateFastaTableStatus() {
+      if (!fastaTableStatus) {
+        return;
+      }
+      fastaTableStatus.textContent = fastaTableFile.files[0]
+        ? `已选择: ${fastaTableFile.files[0].name}`
+        : "未选择表格文件。";
     }
 
     function updateFileStatus() {
@@ -1311,9 +1951,192 @@
         : "未选择 GenBank 文件。";
     }
 
+    function updateImageStatus() {
+      if (imageGroup.classList.contains("hidden")) {
+        imageStatus.textContent = "";
+        return;
+      }
+
+      imageStatus.textContent = colonyImageFile.files[0]
+        ? `已选择 ${colonyImageFile.files.length} 张: ${Array.from(colonyImageFile.files).map((file) => file.name).join("；")}`
+        : "未选择平板图片。";
+      sampleStatus.textContent = colonySampleFile.files[0]
+        ? `样例截图: ${colonySampleFile.files[0].name}`
+        : "未选择样例截图。";
+      updateSamplePickerVisibility();
+    }
+
+    async function handleColonyImageChange() {
+      clearSampleSelectionState();
+      updateImageStatus();
+      if (colonyColorMode.value === "sample" && colonyImageFile.files[0]) {
+        await loadSamplePickerCanvas();
+      }
+    }
+
+    function updateSamplePickerVisibility() {
+      samplePicker.classList.toggle("hidden", tool.value !== "colony_count" || colonyColorMode.value !== "sample");
+    }
+
+    async function loadSamplePickerCanvas() {
+      const file = colonyImageFile.files[0];
+      if (!file) {
+        sampleSelectionStatus.textContent = "请先上传平板图片。";
+        return;
+      }
+      sampleSelectionState.imageDataUrl = await readFileAsDataUrl(file);
+      sampleSelectionState.image = await loadImage(sampleSelectionState.imageDataUrl);
+      drawSampleCanvas();
+      sampleSelectionStatus.textContent = "拖拽框选一个典型菌落区域。";
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.addEventListener("load", () => resolve(image));
+        image.addEventListener("error", reject);
+        image.src = src;
+      });
+    }
+
+    function drawSampleCanvas(selection = null) {
+      const image = sampleSelectionState.image;
+      if (!image) {
+        return;
+      }
+      const maxWidth = Math.min(900, image.naturalWidth);
+      const scale = maxWidth / image.naturalWidth;
+      sampleCanvas.width = Math.round(image.naturalWidth * scale);
+      sampleCanvas.height = Math.round(image.naturalHeight * scale);
+      const context = sampleCanvas.getContext("2d");
+      context.clearRect(0, 0, sampleCanvas.width, sampleCanvas.height);
+      context.drawImage(image, 0, 0, sampleCanvas.width, sampleCanvas.height);
+
+      if (selection) {
+        const rect = normalizedRect(selection.startX, selection.startY, selection.currentX, selection.currentY);
+        context.fillStyle = "rgba(25, 111, 99, 0.22)";
+        context.strokeStyle = "#f2c94c";
+        context.lineWidth = 3;
+        context.fillRect(rect.x, rect.y, rect.width, rect.height);
+        context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+      }
+    }
+
+    function startSampleSelection(event) {
+      if (!sampleSelectionState.image) {
+        return;
+      }
+      const point = canvasPoint(event);
+      sampleSelectionState.startX = point.x;
+      sampleSelectionState.startY = point.y;
+      sampleSelectionState.currentX = point.x;
+      sampleSelectionState.currentY = point.y;
+      sampleSelectionState.isDragging = true;
+      sampleCanvas.setPointerCapture(event.pointerId);
+      drawSampleCanvas(sampleSelectionState);
+    }
+
+    function moveSampleSelection(event) {
+      if (!sampleSelectionState.isDragging) {
+        return;
+      }
+      const point = canvasPoint(event);
+      sampleSelectionState.currentX = point.x;
+      sampleSelectionState.currentY = point.y;
+      drawSampleCanvas(sampleSelectionState);
+    }
+
+    function finishSampleSelection(event) {
+      if (!sampleSelectionState.isDragging) {
+        return;
+      }
+      const point = canvasPoint(event);
+      sampleSelectionState.currentX = point.x;
+      sampleSelectionState.currentY = point.y;
+      sampleSelectionState.isDragging = false;
+      const rect = normalizedRect(
+        sampleSelectionState.startX,
+        sampleSelectionState.startY,
+        sampleSelectionState.currentX,
+        sampleSelectionState.currentY
+      );
+      if (rect.width < 4 || rect.height < 4) {
+        sampleSelectionStatus.textContent = "框选区域太小，请重新拖拽。";
+        drawSampleCanvas();
+        return;
+      }
+      sampleSelectionState.cropDataUrl = cropSampleDataUrl(rect);
+      samplePreview.src = sampleSelectionState.cropDataUrl;
+      samplePreview.classList.remove("hidden");
+      sampleSelectionStatus.textContent = `已框选样例: ${Math.round(rect.width)} x ${Math.round(rect.height)} px`;
+      drawSampleCanvas({ ...sampleSelectionState, ...rectToSelection(rect) });
+    }
+
+    function canvasPoint(event) {
+      const bounds = sampleCanvas.getBoundingClientRect();
+      return {
+        x: (event.clientX - bounds.left) * (sampleCanvas.width / bounds.width),
+        y: (event.clientY - bounds.top) * (sampleCanvas.height / bounds.height)
+      };
+    }
+
+    function normalizedRect(x1, y1, x2, y2) {
+      const x = Math.max(0, Math.min(x1, x2));
+      const y = Math.max(0, Math.min(y1, y2));
+      const width = Math.min(sampleCanvas.width - x, Math.abs(x2 - x1));
+      const height = Math.min(sampleCanvas.height - y, Math.abs(y2 - y1));
+      return { x, y, width, height };
+    }
+
+    function rectToSelection(rect) {
+      return {
+        startX: rect.x,
+        startY: rect.y,
+        currentX: rect.x + rect.width,
+        currentY: rect.y + rect.height
+      };
+    }
+
+    function cropSampleDataUrl(rect) {
+      const image = sampleSelectionState.image;
+      const scaleX = image.naturalWidth / sampleCanvas.width;
+      const scaleY = image.naturalHeight / sampleCanvas.height;
+      const cropCanvas = document.createElement("canvas");
+      cropCanvas.width = Math.max(1, Math.round(rect.width * scaleX));
+      cropCanvas.height = Math.max(1, Math.round(rect.height * scaleY));
+      const context = cropCanvas.getContext("2d");
+      context.drawImage(
+        image,
+        Math.round(rect.x * scaleX),
+        Math.round(rect.y * scaleY),
+        cropCanvas.width,
+        cropCanvas.height,
+        0,
+        0,
+        cropCanvas.width,
+        cropCanvas.height
+      );
+      return cropCanvas.toDataURL("image/png");
+    }
+
+    function clearSampleSelectionState() {
+      sampleSelectionState.cropDataUrl = "";
+      sampleSelectionState.isDragging = false;
+      samplePreview.removeAttribute("src");
+      samplePreview.classList.add("hidden");
+      sampleSelectionStatus.textContent = "拖拽框选一个典型菌落区域。";
+      if (sampleSelectionState.image) {
+        drawSampleCanvas();
+      }
+    }
+
     run.addEventListener("click", async () => {
       output.textContent = "运行中...";
       try {
+        if (tool.value === "colony_count" && colonyImageFile.files.length > 1) {
+          await runColonyBatch();
+          return;
+        }
         const requestPayload = await buildRequestPayload();
         payload.value = JSON.stringify(requestPayload, null, 2);
         const response = await fetch("/api/jobs", {
@@ -1326,11 +2149,40 @@
         });
         const data = await response.json();
         renderPartsView(data);
+        renderColonyResult(data);
         output.textContent = formatOutput(data);
       } catch (error) {
         output.textContent = String(error);
       }
     });
+
+    async function runColonyBatch() {
+      clearPartsView();
+      clearColonyResult();
+      const files = Array.from(colonyImageFile.files);
+      if (!files.length) {
+        throw new Error("菌落计数需要上传至少一张平板图片。");
+      }
+
+      const results = [];
+      for (const [index, file] of files.entries()) {
+        output.textContent = `批量运行中... ${index + 1}/${files.length} ${file.name}`;
+        const requestPayload = await buildColonyPayload(file);
+        const response = await fetch("/api/jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tool_name: "colony_count",
+            payload: requestPayload
+          })
+        });
+        const data = await response.json();
+        results.push({ file_name: file.name, job: data });
+        renderColonyBatchResult(results, files.length);
+      }
+
+      output.textContent = formatColonyBatchOutput(results);
+    }
 
     function formatOutput(data) {
       if (data.tool_name === "ncbi_blast_lookup" && data.result) {
@@ -1470,6 +2322,49 @@
         lines.push("", JSON.stringify(data, null, 2));
         return lines.join("\n");
       }
+
+      if (data.tool_name === "fasta_generator" && data.result) {
+        const result = data.result;
+        const lines = [
+          `status: ${data.status}`,
+          `records: ${result.record_count}`,
+          `sequence type: ${result.sequence_type}`,
+          "",
+          "name\tlength"
+        ];
+        for (const record of result.records || []) {
+          lines.push([record.name, record.length].join("\t"));
+        }
+        if (data.id && result.files?.fasta) {
+          lines.push("", `download fasta: /api/jobs/${data.id}/files/${result.files.fasta}`);
+        }
+        lines.push("", "FASTA:", result.fasta, "", JSON.stringify(data, null, 2));
+        return lines.join("\n");
+      }
+
+      if (data.tool_name === "colony_count" && data.result) {
+        const result = data.result;
+        const lines = [
+          `status: ${data.status}`,
+          `colonies: ${result.colony_count}`,
+          `raw regions: ${result.raw_region_count}`,
+          `split regions: ${result.split_region_count}`,
+          "",
+          "id\tcenter_x\tcenter_y\tarea\tradius\tsource"
+        ];
+        for (const colony of result.colonies || []) {
+          lines.push([
+            colony.id,
+            colony.center_x,
+            colony.center_y,
+            colony.area,
+            colony.radius,
+            colony.source
+          ].join("\t"));
+        }
+        lines.push("", JSON.stringify(data, null, 2));
+        return lines.join("\n");
+      }
       return JSON.stringify(data, null, 2);
     }
 
@@ -1485,6 +2380,122 @@
       partsView.classList.add("hidden");
       partsSection.classList.add("hidden");
       currentPartsResult = null;
+    }
+
+    function clearColonyResult() {
+      colonySummary.textContent = "";
+      colonyImages.innerHTML = "";
+      colonySection.classList.add("hidden");
+    }
+
+    function renderColonyBatchResult(results, total) {
+      colonySection.classList.remove("hidden");
+      colonySummary.textContent = `批量进度 ${results.length}/${total}`;
+      colonyImages.innerHTML = "";
+
+      const table = document.createElement("table");
+      table.className = "batch-table";
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>图片</th>
+            <th>状态</th>
+            <th>菌落数</th>
+            <th>原始区域</th>
+            <th>拆分区域</th>
+            <th>结果</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+      const body = table.querySelector("tbody");
+      for (const item of results) {
+        const job = item.job;
+        const result = job.result || {};
+        const files = result.files || {};
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${escapeHtml(item.file_name)}</td>
+          <td>${escapeHtml(job.status || "")}</td>
+          <td>${result.colony_count ?? ""}</td>
+          <td>${result.raw_region_count ?? ""}</td>
+          <td>${result.split_region_count ?? ""}</td>
+          <td>${batchLinks(job, files)}</td>
+        `;
+        body.appendChild(row);
+      }
+      colonyImages.appendChild(table);
+    }
+
+    function batchLinks(job, files) {
+      if (!job.id || !files.annotated_image) {
+        return "";
+      }
+      const annotated = `/api/jobs/${job.id}/files/${files.annotated_image}`;
+      const mask = files.mask_image ? `/api/jobs/${job.id}/files/${files.mask_image}` : "";
+      const csv = files.csv ? `/api/jobs/${job.id}/files/${files.csv}` : "";
+      return [
+        `<a href="${annotated}" target="_blank" rel="noopener">标注图</a>`,
+        mask ? `<a href="${mask}" target="_blank" rel="noopener">Mask</a>` : "",
+        csv ? `<a href="${csv}" target="_blank" rel="noopener">CSV</a>` : ""
+      ].filter(Boolean).join(" · ");
+    }
+
+    function formatColonyBatchOutput(results) {
+      const lines = [
+        `batch: ${results.length} image(s)`,
+        "",
+        "file\tstatus\tcolonies\traw_regions\tsplit_regions\tjob_id"
+      ];
+      for (const item of results) {
+        const job = item.job;
+        const result = job.result || {};
+        lines.push([
+          item.file_name,
+          job.status || "",
+          result.colony_count ?? "",
+          result.raw_region_count ?? "",
+          result.split_region_count ?? "",
+          job.id || ""
+        ].join("\t"));
+      }
+      lines.push("", JSON.stringify(results, null, 2));
+      return lines.join("\n");
+    }
+
+    function renderColonyResult(data) {
+      clearColonyResult();
+      if (data.tool_name !== "colony_count" || !data.result || data.status !== "completed") {
+        return;
+      }
+
+      const result = data.result;
+      colonySection.classList.remove("hidden");
+      colonySummary.textContent = `菌落数 ${result.colony_count} · 原始区域 ${result.raw_region_count} · 拆分区域 ${result.split_region_count}`;
+      const files = result.files || {};
+      if (files.annotated_image) {
+        colonyImages.appendChild(imageFigure(`/api/jobs/${data.id}/files/${files.annotated_image}`, "标注图"));
+      }
+      if (files.mask_image) {
+        colonyImages.appendChild(imageFigure(`/api/jobs/${data.id}/files/${files.mask_image}`, "Mask"));
+      }
+    }
+
+    function imageFigure(src, caption) {
+      const figure = document.createElement("figure");
+      const link = document.createElement("a");
+      link.href = src;
+      link.target = "_blank";
+      link.rel = "noopener";
+      const image = document.createElement("img");
+      image.src = src;
+      image.alt = caption;
+      const label = document.createElement("figcaption");
+      label.textContent = caption;
+      link.appendChild(image);
+      figure.appendChild(link);
+      figure.appendChild(label);
+      return figure;
     }
 
     function renderPartsView(data) {

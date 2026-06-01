@@ -135,7 +135,7 @@ class ReferenceSimilarityInput:
             raise ToolInputError("Payload must be an object.")
 
         reference, targets = _reference_sequences_from_payload(payload)
-        _ensure_unique_ids([reference, *targets])
+        _ensure_unique_ids(targets)
 
         return cls(
             reference=reference,

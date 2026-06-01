@@ -145,6 +145,25 @@ class PairwiseAlignmentRunnerTest(unittest.TestCase):
             self.assertEqual(result["rows"][0]["target_id"], "target_1")
             self.assertTrue((workdir / "similarity_table.csv").exists())
 
+    def test_reference_similarity_table_allows_reference_record_in_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            workdir = Path(tempdir)
+            runner = ReferenceSimilarityTableRunner()
+            payload = {
+                "reference_fasta": ">ref\nMEEPQSDPSV\n",
+                "targets_fasta": ">ref\nMEEPQSDPSV\n>target_2\nMEEPQSGLSV\n",
+                "sequence_type": "protein",
+                "substitution_matrix": "BLOSUM62",
+                "gap_score": -10,
+            }
+
+            runner.validate_input(payload)
+            result = runner.run(payload, workdir)
+
+            self.assertEqual(result["target_count"], 2)
+            self.assertEqual(result["rows"][0]["target_id"], "ref")
+            self.assertEqual(result["rows"][0]["identity"], 1.0)
+
     def test_pairwise_similarity_matrix_runner_writes_heatmap_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             workdir = Path(tempdir)

@@ -5,8 +5,9 @@ import json
 from dataclasses import asdict
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler
+from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from app.core.config import RESULTS_ROOT
 from app.services.job_service import JobService
@@ -29,6 +30,11 @@ class BioToolRequestHandler(BaseHTTPRequestHandler):
 
         if path == "/api/tools":
             self._send_json({"tools": list_tools()})
+            return
+
+        if path.startswith("/api/jobs/") and "/files/" in path:
+            job_id, file_name = path.removeprefix("/api/jobs/").split("/files/", 1)
+            self._send_job_file(job_id.strip("/"), unquote(file_name.strip("/")))
             return
 
         if path.startswith("/api/jobs/"):
@@ -86,3 +92,46 @@ class BioToolRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def _send_job_file(self, job_id: str, file_name: str) -> None:
+        job = JOB_SERVICE.get_job(job_id)
+        if job is None:
+            self._send_json({"error": f"Unknown job: {job_id}"}, HTTPStatus.NOT_FOUND)
+            return
+        if not file_name or Path(file_name).name != file_name:
+            self._send_json({"error": "Invalid file name."}, HTTPStatus.BAD_REQUEST)
+            return
+
+        path = Path(job.workdir) / file_name
+        try:
+            resolved = path.resolve(strict=True)
+            workdir = Path(job.workdir).resolve(strict=True)
+        except OSError:
+            self._send_json({"error": f"Unknown file: {file_name}"}, HTTPStatus.NOT_FOUND)
+            return
+
+        if resolved.parent != workdir or not resolved.is_file():
+            self._send_json({"error": "File is outside the job workdir."}, HTTPStatus.BAD_REQUEST)
+            return
+
+        body = resolved.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", _content_type(resolved.name))
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+def _content_type(file_name: str) -> str:
+    suffix = Path(file_name).suffix.lower()
+    if suffix == ".png":
+        return "image/png"
+    if suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    if suffix == ".csv":
+        return "text/csv; charset=utf-8"
+    if suffix in {".fa", ".fasta", ".fna", ".faa"}:
+        return "text/plain; charset=utf-8"
+    if suffix == ".json":
+        return "application/json; charset=utf-8"
+    return "application/octet-stream"

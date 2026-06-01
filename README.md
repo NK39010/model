@@ -99,6 +99,38 @@ frontend/
 PYTHONPATH=backend .venv/bin/python -m unittest discover backend/app/tests
 ```
 
+## Windows exe / 安装包构建
+
+建议在 Windows 环境构建和测试 exe：
+
+```powershell
+.\scripts\build_windows_exe.ps1
+```
+
+生成目录：
+
+```text
+dist\BioToolBackend\BioToolBackend.exe
+```
+
+运行 exe 后终端会显示本地访问地址，例如：
+
+```text
+http://127.0.0.1:8000
+```
+
+如果需要生成安装包，先安装 Inno Setup，然后运行：
+
+```powershell
+.\scripts\build_windows_exe.ps1 -Installer
+```
+
+安装包输出：
+
+```text
+dist\installer\BioToolBackendSetup.exe
+```
+
 ## 命令行示例
 
 不启动网页，直接通过 `JobService` 调用工具：
