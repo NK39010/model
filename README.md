@@ -177,6 +177,40 @@ backend/app/services/file_service.py
 backend/app/core/config.py
 ```
 
+## PyMOL 后端控制
+
+`pymol_control` 用于把 PyMOL 作为后端渲染/分析引擎接入。本项目不会把 PyMOL GUI 直接嵌入网页，而是让前端操作面板提交白名单操作，后端生成安全 `.pml` 脚本并调用 PyMOL 输出图片、脚本和日志。
+
+运行前需要安装 PyMOL，并确保命令行能找到 `pymol`，或显式指定：
+
+```bash
+export PYMOL_BIN=/path/to/pymol
+PYTHONPATH=backend .venv/bin/python backend/app/main.py
+```
+
+请求示例：
+
+```json
+{
+  "tool_name": "pymol_control",
+  "payload": {
+    "structure_text": "ATOM ...",
+    "structure_file_name": "receptor.pdb",
+    "operation": "render_basic",
+    "style": "cartoon",
+    "background": "white"
+  }
+}
+```
+
+当前支持的白名单操作：
+
+```text
+render_basic
+highlight_ligand_pocket
+color_chains
+```
+
 ## GenBank 零件解析
 
 `sequence_parts_parse` 用于将 GenBank 文本解析成前端可展示的零件数组，并自动补全未注释区间为 `linker`。

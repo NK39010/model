@@ -14,6 +14,7 @@ from app.tools.fasta_generator.runner import FastaGeneratorRunner
 from app.tools.ncbi.runner import NCBIRefSeqLookupRunner
 from app.tools.primer_design.runner import PrimerDesignRunner
 from app.tools.promoter_selection.runner import PromoterSelectionRunner
+from app.tools.pymol_control.runner import PyMOLControlRunner
 from app.tools.resistance_marker_selection.runner import ResistanceMarkerSelectionRunner
 from app.tools.sequence_parts.runner import SequencePartsParseRunner
 
@@ -28,6 +29,7 @@ TOOL_REGISTRY: dict[str, ToolRunner] = {
     FastaGeneratorRunner.name: FastaGeneratorRunner(),
     PrimerDesignRunner.name: PrimerDesignRunner(),
     PromoterSelectionRunner.name: PromoterSelectionRunner(),
+    PyMOLControlRunner.name: PyMOLControlRunner(),
     ResistanceMarkerSelectionRunner.name: ResistanceMarkerSelectionRunner(),
     SequencePartsParseRunner.name: SequencePartsParseRunner(),
 }

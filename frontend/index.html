@@ -478,6 +478,247 @@
       line-height: 1.45;
     }
 
+    .structure-layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .structure-panel {
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #c7d4d0;
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    .structure-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .structure-actions button {
+      margin-top: 0;
+      padding: 9px 10px;
+      background: #2f5f70;
+      font-size: 14px;
+    }
+
+    .structure-actions button:hover {
+      background: #244b59;
+    }
+
+    .structure-actions button.active {
+      background: #9a4f16;
+    }
+
+    .structure-info {
+      min-height: 120px;
+      margin: 0;
+      padding: 10px;
+      border: 1px solid #c7d4d0;
+      border-radius: 6px;
+      background: #f7faf9;
+      color: #334e56;
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .structure-objects {
+      display: grid;
+      gap: 8px;
+      max-height: 430px;
+      overflow: auto;
+      padding: 10px;
+      border: 1px solid #c7d4d0;
+      border-radius: 6px;
+      background: #f7faf9;
+    }
+
+    .structure-objects h3 {
+      margin: 4px 0 2px;
+      font-size: 15px;
+    }
+
+    .structure-objects details {
+      border-top: 1px solid #d7e0dd;
+      padding-top: 8px;
+    }
+
+    .structure-objects summary {
+      cursor: pointer;
+      color: #263238;
+      font-weight: 700;
+    }
+
+    .structure-object-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 6px;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+    }
+
+    .structure-object-row button {
+      width: auto;
+      margin-top: 0;
+      padding: 5px 8px;
+      border-color: #8aa19a;
+      color: #1f2933;
+      background: #eef5f2;
+      font-size: 12px;
+    }
+
+    .structure-object-row button:hover {
+      background: #dfece7;
+    }
+
+    .structure-object-row.active {
+      border-color: #9a4f16;
+      background: #fff4e8;
+      box-shadow: inset 3px 0 0 #9a4f16;
+    }
+
+    .structure-object-row.active span {
+      color: #70360d;
+      font-weight: 700;
+    }
+
+    .structure-sequence-panel {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid #c7d4d0;
+      border-radius: 6px;
+      background: #ffffff;
+    }
+
+    .structure-sequence-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      color: #263238;
+      font-weight: 700;
+    }
+
+    .sequence-chain-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .sequence-chain-tabs button {
+      width: auto;
+      margin-top: 0;
+      padding: 6px 10px;
+      border-color: #8aa19a;
+      color: #1f2933;
+      background: #eef5f2;
+      font-size: 13px;
+    }
+
+    .sequence-chain-tabs button.active,
+    .structure-object-row button.active {
+      color: #ffffff;
+      background: #9a4f16;
+      border-color: #9a4f16;
+    }
+
+    .sequence-view {
+      display: grid;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 10px;
+      border: 1px solid #d7e0dd;
+      border-radius: 6px;
+      background: #f7faf9;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .sequence-row {
+      display: grid;
+      grid-template-columns: 56px max-content;
+      gap: 10px;
+      align-items: start;
+      white-space: nowrap;
+    }
+
+    .sequence-index {
+      color: #6b7c85;
+      font-size: 12px;
+      line-height: 28px;
+      text-align: right;
+    }
+
+    .sequence-letters {
+      display: flex;
+      gap: 0;
+      align-items: center;
+    }
+
+    .sequence-gap {
+      width: 12px;
+      flex: 0 0 12px;
+    }
+
+    .residue-letter {
+      width: 20px;
+      height: 28px;
+      padding: 0;
+      border: 0;
+      border-radius: 4px;
+      color: #263238;
+      background: transparent;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 28px;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .residue-letter:hover {
+      background: #dfece7;
+    }
+
+    .residue-letter.active {
+      color: #ffffff;
+      background: #9a4f16;
+      box-shadow: inset 0 -3px 0 #f2c94c;
+    }
+
+    .sequence-row.active-chain {
+      background: #eef5f2;
+    }
+
+    .structure-viewer {
+      position: relative;
+      min-height: 560px;
+      border: 1px solid #9fb0aa;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .structure-empty {
+      display: grid;
+      min-height: 560px;
+      place-items: center;
+      padding: 20px;
+      color: #6b7c85;
+      font-weight: 700;
+      text-align: center;
+    }
+
     @media (max-width: 680px) {
       .form-grid {
         grid-template-columns: 1fr;
@@ -494,8 +735,18 @@
       .image-result {
         grid-template-columns: 1fr;
       }
+
+      .structure-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .structure-viewer,
+      .structure-empty {
+        min-height: 420px;
+      }
     }
   </style>
+  <script src="https://3Dmol.org/build/3Dmol-min.js"></script>
 </head>
 <body>
   <main>
@@ -516,6 +767,7 @@
         <option value="sequence_parts_parse">GenBank 零件解析</option>
         <option value="fasta_generator">FASTA 生成器</option>
         <option value="colony_count">菌落计数</option>
+        <option value="structure_viewer">结构查看</option>
       </select>
 
       <div id="toolHelp" class="tool-help"></div>
@@ -872,6 +1124,35 @@ geneB	ATGGGCCCAA</textarea>
         </div>
       </div>
 
+      <div id="structureControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="structureStyle">显示样式</label>
+            <select id="structureStyle">
+              <option value="default">蛋白 cartoon + 配体 sticks</option>
+              <option value="sticks">全部 sticks</option>
+              <option value="ball_stick">Ball-stick</option>
+              <option value="surface">半透明表面</option>
+              <option value="pocket">Pocket view</option>
+            </select>
+            <p class="field-note">Pocket view 会突出配体和周围区域，适合后续判断对接口袋。</p>
+          </div>
+          <div>
+            <label for="structureBackground">背景颜色</label>
+            <select id="structureBackground">
+              <option value="white">白色</option>
+              <option value="black">黑色</option>
+            </select>
+            <p class="field-note">白色适合截图和报告；黑色适合观察空间层次。</p>
+          </div>
+          <label class="part-option">
+            <input id="structureShowLabels" type="checkbox">
+            点击后显示标签
+            <span class="field-note">默认只在结构图中高亮所选对象；需要名称和编号时再打开标签。</span>
+          </label>
+        </div>
+      </div>
+
       <datalist id="hostOptions">
         <option value="Any organism"></option>
         <option value="Escherichia coli"></option>
@@ -952,6 +1233,13 @@ geneB	ATGGGCCCAA</textarea>
           </div>
         </div>
       </div>
+      <div id="structureGroup" class="hidden">
+        <label for="structureProteinFile">蛋白/受体结构文件</label>
+        <input id="structureProteinFile" type="file" accept=".pdb,.pdbqt,.cif,.mmcif,.mol2,.sdf,.txt">
+        <label for="structureLigandFile">小分子/配体结构文件，可选</label>
+        <input id="structureLigandFile" type="file" accept=".sdf,.mol2,.pdb,.pdbqt,.txt">
+        <p id="structureFileStatus">未选择结构文件。</p>
+      </div>
 
       <button id="run">运行</button>
     </section>
@@ -965,6 +1253,41 @@ geneB	ATGGGCCCAA</textarea>
       <h2>菌落计数结果</h2>
       <p id="colonySummary" class="part-summary"></p>
       <div id="colonyImages" class="image-result"></div>
+    </section>
+
+    <section id="structureSection" class="hidden">
+      <h2>结构查看</h2>
+      <div class="structure-layout">
+        <div class="structure-panel">
+          <div class="structure-actions">
+            <button id="structureResetView" type="button">重置视角</button>
+            <button id="structureScreenshot" type="button">截图</button>
+            <button id="structureHideSelected" type="button">隐藏所选</button>
+            <button id="structureFocusSelected" type="button">聚焦所选</button>
+            <button id="structureShowAll" type="button">显示全部</button>
+            <button id="structureOnlySelected" type="button">只看所选</button>
+            <button id="structureHideWater" type="button">隐藏水</button>
+            <button id="structureHideLigand" type="button">隐藏配体</button>
+            <button id="structureMeasure" type="button">测距</button>
+            <button id="structureClearMeasure" type="button">清除测距</button>
+          </div>
+          <pre id="structureSelectionInfo" class="structure-info">未选择对象。点击结构对象、链或残基后，会在列表中高亮当前选择。</pre>
+          <div id="structureObjectList" class="structure-objects">
+            <h3>结构对象</h3>
+            <p class="field-note">加载结构后会显示蛋白链、氨基酸序列、配体、金属和水分子。</p>
+          </div>
+        </div>
+        <div id="structureViewer" class="structure-viewer">
+          <div class="structure-empty">上传结构文件后点击“加载结构”。</div>
+        </div>
+      </div>
+      <div id="structureSequencePanel" class="structure-sequence-panel hidden">
+        <div class="structure-sequence-head">
+          <span id="structureSequenceTitle">链序列</span>
+          <div id="structureChainTabs" class="sequence-chain-tabs"></div>
+        </div>
+        <div id="structureSequenceView" class="sequence-view"></div>
+      </div>
     </section>
 
     <section>
@@ -1071,6 +1394,12 @@ geneB	ATGGGCCCAA</textarea>
         target_color: "#f0ead1",
         color_tolerance: 38,
         sample_image_data_url: ""
+      },
+      structure_viewer: {
+        protein_file: "",
+        ligand_file: "",
+        display_style: "default",
+        background: "white"
       }
     };
 
@@ -1177,6 +1506,32 @@ geneB	ATGGGCCCAA</textarea>
     const colonySection = document.querySelector("#colonySection");
     const colonySummary = document.querySelector("#colonySummary");
     const colonyImages = document.querySelector("#colonyImages");
+    const structureControls = document.querySelector("#structureControls");
+    const structureStyle = document.querySelector("#structureStyle");
+    const structureBackground = document.querySelector("#structureBackground");
+    const structureShowLabels = document.querySelector("#structureShowLabels");
+    const structureGroup = document.querySelector("#structureGroup");
+    const structureProteinFile = document.querySelector("#structureProteinFile");
+    const structureLigandFile = document.querySelector("#structureLigandFile");
+    const structureFileStatus = document.querySelector("#structureFileStatus");
+    const structureSection = document.querySelector("#structureSection");
+    const structureViewerElement = document.querySelector("#structureViewer");
+    const structureResetView = document.querySelector("#structureResetView");
+    const structureScreenshot = document.querySelector("#structureScreenshot");
+    const structureHideSelected = document.querySelector("#structureHideSelected");
+    const structureFocusSelected = document.querySelector("#structureFocusSelected");
+    const structureShowAll = document.querySelector("#structureShowAll");
+    const structureOnlySelected = document.querySelector("#structureOnlySelected");
+    const structureHideWater = document.querySelector("#structureHideWater");
+    const structureHideLigand = document.querySelector("#structureHideLigand");
+    const structureMeasure = document.querySelector("#structureMeasure");
+    const structureClearMeasure = document.querySelector("#structureClearMeasure");
+    const structureSelectionInfo = document.querySelector("#structureSelectionInfo");
+    const structureObjectList = document.querySelector("#structureObjectList");
+    const structureSequencePanel = document.querySelector("#structureSequencePanel");
+    const structureSequenceTitle = document.querySelector("#structureSequenceTitle");
+    const structureChainTabs = document.querySelector("#structureChainTabs");
+    const structureSequenceView = document.querySelector("#structureSequenceView");
     let currentPartsResult = null;
     const partViewState = {
       search: "",
@@ -1231,6 +1586,10 @@ geneB	ATGGGCCCAA</textarea>
       colony_count: {
         title: "菌落计数",
         summary: "对平板图片进行培养皿定位、颜色/亮度分割、连通域计数和粘连拆分，输出菌落数、坐标、标注图和 CSV。支持批量图片。"
+      },
+      structure_viewer: {
+        title: "结构查看",
+        summary: "在网页中查看蛋白和小分子三维结构，支持旋转、缩放、平移、选择、隐藏、测距和截图。适合作为分子对接前后的可视化底座。"
       }
     };
     const sampleSelectionState = {
@@ -1243,6 +1602,56 @@ geneB	ATGGGCCCAA</textarea>
       currentY: 0,
       isDragging: false
     };
+    const structureState = {
+      viewer: null,
+      selectedAtom: null,
+      selectedSelection: null,
+      selectedType: "",
+      selectedLabel: "",
+      hiddenSelections: [],
+      onlySelection: null,
+      measureMode: false,
+      measureAtoms: [],
+      labels: [],
+      measurements: [],
+      atoms: [],
+      summary: null,
+      activeChainId: "",
+      panActive: false,
+      panLastX: 0,
+      panLastY: 0
+    };
+    const aminoAcidOneLetter = {
+      ALA: "A",
+      ARG: "R",
+      ASN: "N",
+      ASP: "D",
+      CYS: "C",
+      GLN: "Q",
+      GLU: "E",
+      GLY: "G",
+      HIS: "H",
+      ILE: "I",
+      LEU: "L",
+      LYS: "K",
+      MET: "M",
+      PHE: "F",
+      PRO: "P",
+      SER: "S",
+      THR: "T",
+      TRP: "W",
+      TYR: "Y",
+      VAL: "V",
+      SEC: "U",
+      PYL: "O",
+      ASX: "B",
+      GLX: "Z",
+      UNK: "X"
+    };
+    const metalElements = new Set([
+      "LI", "NA", "K", "RB", "CS", "MG", "CA", "SR", "BA", "MN", "FE",
+      "CO", "NI", "CU", "ZN", "CD", "HG", "AL", "GA", "IN", "SN", "PB"
+    ]);
 
     function loadExample() {
       payload.value = JSON.stringify(examples[tool.value], null, 2);
@@ -1251,6 +1660,7 @@ geneB	ATGGGCCCAA</textarea>
       genbankFile.value = "";
       clearPartsView();
       clearColonyResult();
+      clearStructureResult(false);
       loadBlastControls();
       loadPrimerControls();
       loadCodonControls();
@@ -1259,11 +1669,13 @@ geneB	ATGGGCCCAA</textarea>
       loadAlignmentControls();
       loadFastaGeneratorControls();
       loadColonyControls();
+      loadStructureControls();
       updateFileInputs();
       updateToolHelp();
       updateFileStatus();
       updateGenBankStatus();
       updateImageStatus();
+      updateStructureFileStatus();
     }
 
     tool.addEventListener("change", loadExample);
@@ -1406,6 +1818,14 @@ geneB	ATGGGCCCAA</textarea>
       colonySplitTouching.checked = data.split_touching;
       colonySplitSensitivity.value = data.split_sensitivity;
       colonyEdgeMargin.value = data.edge_margin_ratio;
+    }
+
+    function loadStructureControls() {
+      const data = examples.structure_viewer;
+      structureStyle.value = data.display_style;
+      structureBackground.value = data.background;
+      structureShowLabels.checked = false;
+      structureMeasure.classList.toggle("active", structureState.measureMode);
     }
 
     function updatePrimerModeControls() {
@@ -1812,6 +2232,26 @@ geneB	ATGGGCCCAA</textarea>
     colonyImageFile.addEventListener("change", handleColonyImageChange);
     colonySampleFile.addEventListener("change", updateImageStatus);
     colonyColorMode.addEventListener("change", updateSamplePickerVisibility);
+    structureProteinFile.addEventListener("change", updateStructureFileStatus);
+    structureLigandFile.addEventListener("change", updateStructureFileStatus);
+    structureStyle.addEventListener("change", applyStructureStyle);
+    structureBackground.addEventListener("change", updateStructureBackground);
+    structureShowLabels.addEventListener("change", applyStructureStyle);
+    structureResetView.addEventListener("click", resetStructureView);
+    structureScreenshot.addEventListener("click", downloadStructureScreenshot);
+    structureHideSelected.addEventListener("click", hideSelectedStructure);
+    structureFocusSelected.addEventListener("click", focusSelectedStructure);
+    structureShowAll.addEventListener("click", showAllStructure);
+    structureOnlySelected.addEventListener("click", onlySelectedStructure);
+    structureHideWater.addEventListener("click", hideWaterStructure);
+    structureHideLigand.addEventListener("click", hideLigandStructure);
+    structureMeasure.addEventListener("click", toggleMeasureMode);
+    structureClearMeasure.addEventListener("click", clearStructureMeasurements);
+    structureViewerElement.addEventListener("contextmenu", (event) => event.preventDefault(), true);
+    structureViewerElement.addEventListener("pointerdown", startStructurePan, true);
+    structureViewerElement.addEventListener("pointermove", moveStructurePan, true);
+    structureViewerElement.addEventListener("pointerup", stopStructurePan, true);
+    structureViewerElement.addEventListener("pointerleave", stopStructurePan, true);
     loadSamplePicker.addEventListener("click", loadSamplePickerCanvas);
     clearSampleSelection.addEventListener("click", clearSampleSelectionState);
     sampleCanvas.addEventListener("pointerdown", startSampleSelection);
@@ -1825,6 +2265,7 @@ geneB	ATGGGCCCAA</textarea>
       fastaFieldB.classList.remove("hidden");
       genbankGroup.classList.add("hidden");
       imageGroup.classList.add("hidden");
+      structureGroup.classList.add("hidden");
       alignmentControls.classList.add("hidden");
       blastControls.classList.add("hidden");
       primerControls.classList.add("hidden");
@@ -1833,8 +2274,10 @@ geneB	ATGGGCCCAA</textarea>
       markerControls.classList.add("hidden");
       fastaGeneratorControls.classList.add("hidden");
       colonyControls.classList.add("hidden");
+      structureControls.classList.add("hidden");
       payloadLabel.classList.add("hidden");
       payload.classList.add("hidden");
+      run.textContent = "运行";
 
       if (tool.value === "reference_similarity_table") {
         alignmentControls.classList.remove("hidden");
@@ -1893,6 +2336,16 @@ geneB	ATGGGCCCAA</textarea>
         fastaGroup.classList.add("hidden");
         fastaFileA.value = "";
         fastaFileB.value = "";
+      } else if (tool.value === "structure_viewer") {
+        structureControls.classList.remove("hidden");
+        structureGroup.classList.remove("hidden");
+        structureSection.classList.remove("hidden");
+        payloadLabel.classList.add("hidden");
+        payload.classList.add("hidden");
+        fastaGroup.classList.add("hidden");
+        fastaFileA.value = "";
+        fastaFileB.value = "";
+        run.textContent = "加载结构";
       } else if (tool.value === "ncbi_refseq_lookup" || tool.value === "sequence_parts_parse") {
         fastaGroup.classList.add("hidden");
         fastaFileA.value = "";
@@ -1990,6 +2443,22 @@ geneB	ATGGGCCCAA</textarea>
         ? `样例截图: ${colonySampleFile.files[0].name}`
         : "未选择样例截图。";
       updateSamplePickerVisibility();
+    }
+
+    function updateStructureFileStatus() {
+      if (structureGroup.classList.contains("hidden")) {
+        structureFileStatus.textContent = "";
+        return;
+      }
+
+      const parts = [];
+      if (structureProteinFile.files[0]) {
+        parts.push(`受体: ${structureProteinFile.files[0].name}`);
+      }
+      if (structureLigandFile.files[0]) {
+        parts.push(`配体: ${structureLigandFile.files[0].name}`);
+      }
+      structureFileStatus.textContent = parts.length ? parts.join("；") : "未选择结构文件。";
     }
 
     async function handleColonyImageChange() {
@@ -2160,6 +2629,10 @@ geneB	ATGGGCCCAA</textarea>
       output.textContent = "运行中...";
       clearResultFiles();
       try {
+        if (tool.value === "structure_viewer") {
+          await loadStructureViewer();
+          return;
+        }
         if (tool.value === "colony_count" && colonyImageFile.files.length > 1) {
           await runColonyBatch();
           return;
@@ -2211,6 +2684,796 @@ geneB	ATGGGCCCAA</textarea>
       }
 
       output.textContent = formatColonyBatchOutput(results);
+    }
+
+    async function loadStructureViewer() {
+      clearPartsView();
+      clearColonyResult();
+      structureSection.classList.remove("hidden");
+      if (!window.$3Dmol) {
+        throw new Error("3Dmol.js 没有加载成功。请确认当前网络可访问 https://3Dmol.org，或后续改成本地静态文件。");
+      }
+
+      const proteinFile = structureProteinFile.files[0];
+      const ligandFile = structureLigandFile.files[0];
+      if (!proteinFile && !ligandFile) {
+        throw new Error("结构查看需要至少上传一个蛋白或小分子结构文件。");
+      }
+
+      structureViewerElement.innerHTML = "";
+      structureState.viewer = $3Dmol.createViewer(structureViewerElement, {
+        backgroundColor: structureBackground.value
+      });
+      structureState.selectedAtom = null;
+      structureState.selectedSelection = null;
+      structureState.selectedType = "";
+      structureState.selectedLabel = "";
+      structureState.hiddenSelections = [];
+      structureState.onlySelection = null;
+      structureState.atoms = [];
+      structureState.summary = null;
+      structureState.activeChainId = "";
+      clearStructureMeasurements();
+
+      if (proteinFile) {
+        const model = structureState.viewer.addModel(await proteinFile.text(), inferStructureFormat(proteinFile.name));
+        collectStructureAtoms(model);
+      }
+      if (ligandFile) {
+        const model = structureState.viewer.addModel(await ligandFile.text(), inferStructureFormat(ligandFile.name));
+        collectStructureAtoms(model);
+      }
+
+      structureState.summary = summarizeStructureAtoms(structureState.atoms);
+      structureState.activeChainId = structureState.summary.chains[0]?.id || "";
+      renderStructureObjects();
+      renderStructureSequence();
+      structureState.viewer.setClickable({}, true, (atom) => handleStructureAtomClick(atom));
+      applyStructureStyle();
+      resetStructureView();
+      updateStructureFileStatus();
+      output.textContent = [
+        "结构已加载。",
+        "鼠标左键拖动旋转，滚轮缩放，右键或 Shift + 左键拖动平移。",
+        "点击原子可查看信息；开启测距后连续点击两个原子显示距离。"
+      ].join("\n");
+    }
+
+    function inferStructureFormat(fileName) {
+      const name = fileName.toLowerCase();
+      if (name.endsWith(".sdf")) {
+        return "sdf";
+      }
+      if (name.endsWith(".mol2")) {
+        return "mol2";
+      }
+      if (name.endsWith(".cif") || name.endsWith(".mmcif")) {
+        return "cif";
+      }
+      return "pdb";
+    }
+
+    function collectStructureAtoms(model) {
+      if (!model || typeof model.selectedAtoms !== "function") {
+        return;
+      }
+      const atoms = model.selectedAtoms({}) || [];
+      structureState.atoms.push(...atoms);
+    }
+
+    function summarizeStructureAtoms(atoms) {
+      const chains = new Map();
+      const ligands = new Map();
+      const metals = new Map();
+      const waters = new Set();
+
+      for (const atom of atoms) {
+        const resn = String(atom.resn || "").toUpperCase();
+        const chain = atom.chain || "-";
+        const resi = atom.resi ?? "";
+        const elem = String(atom.elem || atom.atom || "").replace(/[0-9]/g, "").toUpperCase();
+        const residueKey = `${chain}|${resi}|${resn}`;
+
+        if (isWaterResidue(resn)) {
+          waters.add(residueKey);
+          continue;
+        }
+
+        if (isProteinResidue(resn) && !atom.hetflag) {
+          if (!chains.has(chain)) {
+            chains.set(chain, {
+              id: chain,
+              atomCount: 0,
+              residues: new Map()
+            });
+          }
+          const chainItem = chains.get(chain);
+          chainItem.atomCount += 1;
+          if (!chainItem.residues.has(residueKey)) {
+            chainItem.residues.set(residueKey, {
+              key: residueKey,
+              chain,
+              resi,
+              resn,
+              one: aminoAcidOneLetter[resn] || "X",
+              atomCount: 0
+            });
+          }
+          chainItem.residues.get(residueKey).atomCount += 1;
+          continue;
+        }
+
+        if (metalElements.has(elem)) {
+          const key = `${chain}|${resi}|${resn || elem}|${atom.serial ?? atom.index ?? ""}`;
+          if (!metals.has(key)) {
+            metals.set(key, {
+              key,
+              chain,
+              resi,
+              resn: resn || elem,
+              elem,
+              atomCount: 0
+            });
+          }
+          metals.get(key).atomCount += 1;
+          continue;
+        }
+
+        if (atom.hetflag || resn) {
+          const key = `${chain}|${resi}|${resn || "MOL"}`;
+          if (!ligands.has(key)) {
+            ligands.set(key, {
+              key,
+              chain,
+              resi,
+              resn: resn || "MOL",
+              atomCount: 0
+            });
+          }
+          ligands.get(key).atomCount += 1;
+        }
+      }
+
+      const chainList = Array.from(chains.values()).map((chain) => ({
+        ...chain,
+        residues: Array.from(chain.residues.values()).sort(compareResidues)
+      })).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+
+      return {
+        chains: chainList,
+        ligands: Array.from(ligands.values()).sort(compareResidues),
+        metals: Array.from(metals.values()).sort(compareResidues),
+        waterCount: waters.size
+      };
+    }
+
+    function isProteinResidue(resn) {
+      return Boolean(aminoAcidOneLetter[resn]);
+    }
+
+    function isWaterResidue(resn) {
+      return resn === "HOH" || resn === "WAT" || resn === "H2O";
+    }
+
+    function compareResidues(a, b) {
+      const chainCompare = String(a.chain || "").localeCompare(String(b.chain || ""));
+      if (chainCompare) {
+        return chainCompare;
+      }
+      const aNum = Number(a.resi);
+      const bNum = Number(b.resi);
+      if (Number.isFinite(aNum) && Number.isFinite(bNum) && aNum !== bNum) {
+        return aNum - bNum;
+      }
+      return String(a.resi || "").localeCompare(String(b.resi || ""));
+    }
+
+    function renderStructureObjects() {
+      const summary = structureState.summary;
+      structureObjectList.innerHTML = "<h3>结构对象</h3>";
+      if (!summary) {
+        const note = document.createElement("p");
+        note.className = "field-note";
+        note.textContent = "加载结构后会显示蛋白链、氨基酸序列、配体、金属和水分子。";
+        structureObjectList.appendChild(note);
+        return;
+      }
+
+      const totals = document.createElement("p");
+      totals.className = "field-note";
+      totals.textContent = [
+        `${summary.chains.length} 条蛋白链`,
+        `${summary.ligands.length} 个配体/小分子`,
+        `${summary.metals.length} 个金属离子`,
+        `${summary.waterCount} 个水分子`
+      ].join(" · ");
+      structureObjectList.appendChild(totals);
+
+      if (summary.chains.length) {
+        const section = document.createElement("div");
+        section.innerHTML = "<h3>蛋白链</h3>";
+        for (const chain of summary.chains) {
+          section.appendChild(chainDetails(chain));
+        }
+        structureObjectList.appendChild(section);
+      }
+
+      if (summary.ligands.length) {
+        structureObjectList.appendChild(objectGroup("配体/小分子", summary.ligands, (item) => ({
+          label: `${item.resn} ${item.resi} ${item.chain}`,
+          type: "ligand",
+          selection: residueSelection(item)
+        })));
+      }
+
+      if (summary.metals.length) {
+        structureObjectList.appendChild(objectGroup("金属离子", summary.metals, (item) => ({
+          label: `${item.elem} ${item.resi} ${item.chain}`,
+          type: "metal",
+          selection: residueSelection(item)
+        })));
+      }
+
+      if (summary.waterCount) {
+        const water = document.createElement("div");
+        const waterSelection = { resn: "HOH" };
+        const waterActive = isActiveStructureSelection("water", waterSelection);
+        water.className = `structure-object-row ${waterActive ? "active" : ""}`.trim();
+        water.innerHTML = `<span>水分子 · ${summary.waterCount} 个</span>`;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = waterActive ? "已选中" : "选中";
+        button.className = waterActive ? "active" : "";
+        button.addEventListener("click", () => selectStructureItem("water", waterSelection, `水分子 · ${summary.waterCount} 个`));
+        water.appendChild(button);
+        structureObjectList.appendChild(water);
+      }
+    }
+
+    function chainDetails(chain) {
+      const chainRow = document.createElement("div");
+      const selection = chainSelection(chain.id);
+      const isActive = isActiveStructureSelection("chain", selection);
+      chainRow.className = `structure-object-row ${isActive ? "active" : ""}`.trim();
+      chainRow.innerHTML = `<span>Chain ${escapeHtml(chain.id)} · ${chain.residues.length} aa · ${chain.atomCount} atoms</span>`;
+      const chainButton = document.createElement("button");
+      chainButton.type = "button";
+      chainButton.textContent = isActive ? "已选中" : "选中";
+      chainButton.className = isActive ? "active" : "";
+      chainButton.addEventListener("click", () => selectChain(chain));
+      chainRow.appendChild(chainButton);
+      return chainRow;
+    }
+
+    function selectChain(chain) {
+      structureState.activeChainId = chain.id;
+      selectStructureItem("chain", chainSelection(chain.id), `Chain ${chain.id} · ${chain.residues.length} aa`);
+      renderStructureSequence();
+    }
+
+    function renderStructureSequence() {
+      const summary = structureState.summary;
+      if (!summary || !summary.chains.length) {
+        structureSequencePanel.classList.add("hidden");
+        structureChainTabs.innerHTML = "";
+        structureSequenceView.innerHTML = "";
+        structureSequenceTitle.textContent = "链序列";
+        return;
+      }
+
+      const activeChain = summary.chains.find((chain) => chain.id === structureState.activeChainId) || summary.chains[0];
+      structureState.activeChainId = activeChain.id;
+      structureSequencePanel.classList.remove("hidden");
+      structureSequenceTitle.textContent = `Chain ${activeChain.id} · ${activeChain.residues.length} aa`;
+      renderChainTabs(summary.chains);
+      renderSequenceRows(activeChain);
+    }
+
+    function renderChainTabs(chains) {
+      structureChainTabs.innerHTML = "";
+      for (const chain of chains) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = `Chain ${chain.id}`;
+        button.className = chain.id === structureState.activeChainId ? "active" : "";
+        button.addEventListener("click", () => selectChain(chain));
+        structureChainTabs.appendChild(button);
+      }
+    }
+
+    function renderSequenceRows(chain) {
+      structureSequenceView.innerHTML = "";
+      if (!chain.residues.length) {
+        const empty = document.createElement("p");
+        empty.className = "field-note";
+        empty.textContent = "这条链没有可识别的标准氨基酸残基。";
+        structureSequenceView.appendChild(empty);
+        return;
+      }
+
+      const residuesPerRow = 50;
+      for (let start = 0; start < chain.residues.length; start += residuesPerRow) {
+        const rowResidues = chain.residues.slice(start, start + residuesPerRow);
+        const row = document.createElement("div");
+        row.className = `sequence-row ${structureState.selectedType === "chain" && structureState.activeChainId === chain.id ? "active-chain" : ""}`.trim();
+        const index = document.createElement("div");
+        index.className = "sequence-index";
+        index.textContent = rowResidues[0]?.resi ?? start + 1;
+        const letters = document.createElement("div");
+        letters.className = "sequence-letters";
+
+        rowResidues.forEach((residue, offset) => {
+          if (offset > 0 && offset % 10 === 0) {
+            const gap = document.createElement("span");
+            gap.className = "sequence-gap";
+            letters.appendChild(gap);
+          }
+          const letter = document.createElement("button");
+          letter.type = "button";
+          letter.className = `residue-letter ${isActiveStructureSelection("residue", residueSelection(residue)) ? "active" : ""}`.trim();
+          letter.textContent = residue.one;
+          letter.title = `${residue.resn} ${residue.resi} Chain ${residue.chain}`;
+          letter.addEventListener("click", () => {
+            structureState.activeChainId = residue.chain;
+            selectStructureItem("residue", residueSelection(residue), `${residue.resn} ${residue.resi} Chain ${residue.chain}`);
+          });
+          letters.appendChild(letter);
+        });
+
+        row.appendChild(index);
+        row.appendChild(letters);
+        structureSequenceView.appendChild(row);
+      }
+    }
+
+    function objectGroup(title, items, describe) {
+      const group = document.createElement("div");
+      group.innerHTML = `<h3>${escapeHtml(title)}</h3>`;
+      for (const item of items) {
+        const description = describe(item);
+        const isActive = isActiveStructureSelection(description.type, description.selection);
+        const row = document.createElement("div");
+        row.className = `structure-object-row ${isActive ? "active" : ""}`.trim();
+        row.innerHTML = `<span>${escapeHtml(description.label)} · ${item.atomCount} atoms</span>`;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = isActive ? "已选中" : "选中";
+        button.className = isActive ? "active" : "";
+        button.addEventListener("click", () => selectStructureItem(description.type, description.selection, description.label));
+        row.appendChild(button);
+        group.appendChild(row);
+      }
+      return group;
+    }
+
+    function chainSelection(chain) {
+      return { chain };
+    }
+
+    function residueSelection(residue) {
+      const selection = { resi: residue.resi };
+      if (residue.chain) {
+        selection.chain = residue.chain;
+      }
+      if (residue.resn) {
+        selection.resn = residue.resn;
+      }
+      return selection;
+    }
+
+    function isActiveStructureSelection(type, selection) {
+      return structureState.selectedType === type && sameSelection(structureState.selectedSelection, selection);
+    }
+
+    function sameSelection(a, b) {
+      return JSON.stringify(a || {}) === JSON.stringify(b || {});
+    }
+
+    function updateStructureBackground() {
+      if (!structureState.viewer) {
+        return;
+      }
+      structureState.viewer.setBackgroundColor(structureBackground.value);
+      structureState.viewer.render();
+    }
+
+    function applyStructureStyle() {
+      const viewer = structureState.viewer;
+      if (!viewer) {
+        return;
+      }
+      viewer.removeAllSurfaces();
+      viewer.setStyle({}, {});
+      const style = structureStyle.value;
+
+      if (style === "sticks") {
+        viewer.setStyle({}, { stick: { radius: 0.16 } });
+      } else if (style === "ball_stick") {
+        viewer.setStyle({}, {
+          stick: { radius: 0.14 },
+          sphere: { scale: 0.25 }
+        });
+      } else if (style === "surface") {
+        viewer.setStyle({ hetflag: false }, { cartoon: { color: "spectrum" } });
+        viewer.setStyle({ hetflag: true }, { stick: { colorscheme: "greenCarbon", radius: 0.18 } });
+        viewer.addSurface($3Dmol.SurfaceType.VDW, {
+          opacity: 0.42,
+          color: structureBackground.value === "black" ? "white" : "#c9d6d1"
+        }, { hetflag: false });
+      } else if (style === "pocket") {
+        viewer.setStyle({ hetflag: false }, { cartoon: { color: "spectrum", opacity: 0.65 } });
+        viewer.setStyle({ hetflag: true }, { stick: { colorscheme: "greenCarbon", radius: 0.22 } });
+        viewer.setStyle({ byres: true, within: { distance: 5, sel: { hetflag: true } } }, {
+          stick: { color: "#d94f30", radius: 0.18 }
+        });
+      } else {
+        viewer.setStyle({ hetflag: false }, { cartoon: { color: "spectrum" } });
+        viewer.setStyle({ hetflag: true }, { stick: { colorscheme: "greenCarbon", radius: 0.18 } });
+      }
+
+      if (structureState.onlySelection) {
+        viewer.setStyle({}, {});
+        viewer.setStyle(structureState.onlySelection, selectionDisplayStyle());
+      }
+      viewer.setStyle({ resn: "HOH" }, {});
+      viewer.setStyle({ resn: "WAT" }, {});
+      for (const selection of structureState.hiddenSelections) {
+        viewer.setStyle(selection, {});
+      }
+      highlightStructureSelection();
+      viewer.render();
+    }
+
+    function handleStructureAtomClick(atom) {
+      if (!atom) {
+        return;
+      }
+      const selection = selectionFromAtom(atom);
+      const type = typeFromAtom(atom);
+      const label = labelFromAtom(atom, type);
+      selectStructureItem(type, selection, label, atom);
+      if (structureState.measureMode) {
+        addStructureMeasureAtom(atom);
+        return;
+      }
+    }
+
+    function startStructurePan(event) {
+      if (event.button !== 2 || !structureState.viewer) {
+        return;
+      }
+      event.preventDefault();
+      structureState.panActive = true;
+      structureState.panLastX = event.clientX;
+      structureState.panLastY = event.clientY;
+      structureViewerElement.setPointerCapture?.(event.pointerId);
+    }
+
+    function moveStructurePan(event) {
+      if (!structureState.panActive || !structureState.viewer) {
+        return;
+      }
+      event.preventDefault();
+      const deltaX = event.clientX - structureState.panLastX;
+      const deltaY = event.clientY - structureState.panLastY;
+      structureState.panLastX = event.clientX;
+      structureState.panLastY = event.clientY;
+      if (typeof structureState.viewer.translate === "function") {
+        structureState.viewer.translate(deltaX, deltaY);
+        structureState.viewer.render();
+      }
+    }
+
+    function stopStructurePan(event) {
+      if (!structureState.panActive) {
+        return;
+      }
+      structureState.panActive = false;
+      if (event?.pointerId !== undefined) {
+        structureViewerElement.releasePointerCapture?.(event.pointerId);
+      }
+    }
+
+    function selectionFromAtom(atom) {
+      if (atom.hetflag || !isProteinResidue(String(atom.resn || "").toUpperCase())) {
+        const resn = atom.resn || "MOL";
+        const selection = { resn };
+        if (atom.chain) {
+          selection.chain = atom.chain;
+        }
+        if (atom.resi !== undefined && atom.resi !== null) {
+          selection.resi = atom.resi;
+        }
+        return selection;
+      }
+      return residueSelection(atom);
+    }
+
+    function typeFromAtom(atom) {
+      return atom.hetflag || !isProteinResidue(String(atom.resn || "").toUpperCase())
+        ? "ligand"
+        : "residue";
+    }
+
+    function labelFromAtom(atom, type) {
+      if (type === "ligand") {
+        return `${atom.resn || "MOL"} ${atom.resi ?? ""} ${atom.chain || ""}`.trim();
+      }
+      return `${atom.resn || "MOL"} ${atom.resi ?? ""} Chain ${atom.chain || "-"}`.trim();
+    }
+
+    function selectStructureItem(type, selection, label, atom = null) {
+      structureState.selectedType = type;
+      structureState.selectedSelection = selection;
+      structureState.selectedLabel = label;
+      structureState.selectedAtom = atom || firstAtomForSelection(selection);
+      if ((type === "chain" || type === "residue") && selection?.chain) {
+        structureState.activeChainId = selection.chain;
+      }
+      structureSelectionInfo.textContent = structureSelectionText();
+      applyStructureStyle();
+      renderStructureObjects();
+      renderStructureSequence();
+    }
+
+    function firstAtomForSelection(selection) {
+      if (!selection) {
+        return null;
+      }
+      return structureState.atoms.find((atom) => atomMatchesSelection(atom, selection)) || null;
+    }
+
+    function atomMatchesSelection(atom, selection) {
+      return Object.entries(selection || {}).every(([key, value]) => atom[key] === value);
+    }
+
+    function structureSelectionText() {
+      const atom = structureState.selectedAtom;
+      const selection = structureState.selectedSelection;
+      const atomCount = countAtomsForSelection(selection);
+      if (!atom) {
+        return [
+          `当前选择: ${structureState.selectedLabel}`,
+          `类型: ${structureState.selectedType || "-"}`,
+          `原子数: ${atomCount}`
+        ].join("\n");
+      }
+      const coordinates = [atom.x, atom.y, atom.z]
+        .map((value) => Number(value || 0).toFixed(3))
+        .join(", ");
+      return [
+        `当前选择: ${structureState.selectedLabel}`,
+        `类型: ${structureState.selectedType || "-"}`,
+        `原子数: ${atomCount}`,
+        `原子: ${atom.atom || atom.elem || "unknown"}`,
+        `元素: ${atom.elem || ""}`,
+        `链: ${atom.chain || "-"}`,
+        `编号: ${atom.serial ?? atom.index ?? "-"}`,
+        `坐标: ${coordinates}`
+      ].join("\n");
+    }
+
+    function countAtomsForSelection(selection) {
+      if (!selection) {
+        return 0;
+      }
+      return structureState.atoms.filter((atom) => atomMatchesSelection(atom, selection)).length;
+    }
+
+    function structureSelection() {
+      return structureState.selectedSelection;
+    }
+
+    function highlightStructureSelection() {
+      const viewer = structureState.viewer;
+      const selection = structureSelection();
+      if (!viewer || !selection) {
+        return;
+      }
+      viewer.setStyle(selection, {
+        stick: { color: "#f5b642", radius: 0.28 },
+        sphere: { color: "#f5b642", scale: 0.38 },
+        cartoon: { color: "#f5b642" }
+      });
+      if (window.$3Dmol?.SurfaceType) {
+        viewer.addSurface($3Dmol.SurfaceType.VDW, {
+          color: "#f5b642",
+          opacity: 0.24
+        }, selection);
+      }
+      viewer.removeAllLabels();
+      if (structureShowLabels.checked && structureState.selectedAtom) {
+        const atom = structureState.selectedAtom;
+        viewer.addLabel(`${atom.resn || "MOL"} ${atom.resi ?? ""} ${atom.atom || atom.elem || ""}`.trim(), {
+          position: { x: atom.x, y: atom.y, z: atom.z },
+          backgroundColor: "rgba(255,255,255,0.85)",
+          fontColor: "black",
+          fontSize: 12
+        });
+      }
+    }
+
+    function selectionDisplayStyle() {
+      return {
+        stick: { colorscheme: "greenCarbon", radius: 0.2 },
+        sphere: { scale: 0.28 },
+        cartoon: { color: "spectrum" }
+      };
+    }
+
+    function hideSelectedStructure() {
+      const selection = structureSelection();
+      if (!selection) {
+        structureSelectionInfo.textContent = "请先点击选择一个原子或残基。";
+        return;
+      }
+      structureState.hiddenSelections.push(selection);
+      structureState.selectedAtom = null;
+      structureState.selectedSelection = null;
+      structureState.selectedType = "";
+      structureState.selectedLabel = "";
+      structureSelectionInfo.textContent = "已隐藏当前选择。";
+      applyStructureStyle();
+      renderStructureObjects();
+    }
+
+    function focusSelectedStructure() {
+      const selection = structureSelection();
+      if (!structureState.viewer || !selection) {
+        structureSelectionInfo.textContent = "请先选择一个链、残基、原子或配体。";
+        return;
+      }
+      structureState.viewer.zoomTo(selection);
+      structureState.viewer.render();
+      structureSelectionInfo.textContent = `${structureSelectionText()}\n\n已聚焦当前选择。`;
+    }
+
+    function onlySelectedStructure() {
+      const selection = structureSelection();
+      if (!structureState.viewer || !selection) {
+        structureSelectionInfo.textContent = "请先选择一个链、残基、原子或配体。";
+        return;
+      }
+      structureState.onlySelection = selection;
+      structureSelectionInfo.textContent = `${structureSelectionText()}\n\n当前只显示所选对象。`;
+      applyStructureStyle();
+    }
+
+    function hideWaterStructure() {
+      if (!structureState.viewer) {
+        return;
+      }
+      structureState.hiddenSelections.push({ resn: "HOH" }, { resn: "WAT" }, { resn: "H2O" });
+      applyStructureStyle();
+      structureSelectionInfo.textContent = "已隐藏水分子。";
+    }
+
+    function hideLigandStructure() {
+      if (!structureState.viewer) {
+        return;
+      }
+      structureState.hiddenSelections.push({ hetflag: true });
+      applyStructureStyle();
+      structureSelectionInfo.textContent = "已隐藏配体/非蛋白小分子。";
+    }
+
+    function showAllStructure() {
+      if (!structureState.viewer) {
+        return;
+      }
+      structureState.hiddenSelections = [];
+      structureState.onlySelection = null;
+      structureState.selectedAtom = null;
+      structureState.selectedSelection = null;
+      structureState.selectedType = "";
+      structureState.selectedLabel = "";
+      structureSelectionInfo.textContent = "已显示全部结构。";
+      applyStructureStyle();
+      renderStructureObjects();
+      renderStructureSequence();
+    }
+
+    function resetStructureView() {
+      if (!structureState.viewer) {
+        return;
+      }
+      structureState.viewer.zoomTo();
+      structureState.viewer.render();
+    }
+
+    function toggleMeasureMode() {
+      structureState.measureMode = !structureState.measureMode;
+      structureState.measureAtoms = [];
+      structureMeasure.classList.toggle("active", structureState.measureMode);
+      structureSelectionInfo.textContent = structureState.measureMode
+        ? "测距模式已开启。请连续点击两个原子。"
+        : "测距模式已关闭。";
+    }
+
+    function addStructureMeasureAtom(atom) {
+      structureState.measureAtoms.push(atom);
+      if (structureState.measureAtoms.length < 2) {
+        structureSelectionInfo.textContent = "已选择第一个原子，请点击第二个原子。";
+        return;
+      }
+      const [a, b] = structureState.measureAtoms;
+      const distance = Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+      const midpoint = {
+        x: (a.x + b.x) / 2,
+        y: (a.y + b.y) / 2,
+        z: (a.z + b.z) / 2
+      };
+      if (typeof structureState.viewer.addLine === "function") {
+        structureState.viewer.addLine({
+          start: { x: a.x, y: a.y, z: a.z },
+          end: { x: b.x, y: b.y, z: b.z },
+          color: "red",
+          linewidth: 3
+        });
+      }
+      structureState.viewer.addLabel(`${distance.toFixed(2)} A`, {
+        position: midpoint,
+        backgroundColor: "rgba(217,79,48,0.9)",
+        fontColor: "white",
+        fontSize: 13
+      });
+      structureState.measurements.push({ a, b, distance });
+      structureState.measureAtoms = [];
+      structureSelectionInfo.textContent = `距离: ${distance.toFixed(2)} A`;
+      structureState.viewer.render();
+    }
+
+    function clearStructureMeasurements() {
+      structureState.measureAtoms = [];
+      structureState.measurements = [];
+      if (structureState.viewer) {
+        structureState.viewer.removeAllLabels();
+        applyStructureStyle();
+      }
+      if (structureState.measureMode) {
+        structureSelectionInfo.textContent = "测距标记已清除。请继续点击两个原子。";
+      }
+    }
+
+    function downloadStructureScreenshot() {
+      if (!structureState.viewer) {
+        structureSelectionInfo.textContent = "请先加载结构。";
+        return;
+      }
+      const dataUrl = structureState.viewer.pngURI();
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = "structure_view.png";
+      link.click();
+    }
+
+    function clearStructureResult(resetFiles = true) {
+      structureSection.classList.add("hidden");
+      structureViewerElement.innerHTML = '<div class="structure-empty">上传结构文件后点击“加载结构”。</div>';
+      structureSelectionInfo.textContent = "未选择对象。点击结构对象、链或残基后，会在列表中高亮当前选择。";
+      structureState.viewer = null;
+      structureState.selectedAtom = null;
+      structureState.selectedSelection = null;
+      structureState.selectedType = "";
+      structureState.selectedLabel = "";
+      structureState.hiddenSelections = [];
+      structureState.onlySelection = null;
+      structureState.measureMode = false;
+      structureState.measureAtoms = [];
+      structureState.measurements = [];
+      structureState.atoms = [];
+      structureState.summary = null;
+      structureState.activeChainId = "";
+      structureState.panActive = false;
+      structureState.panLastX = 0;
+      structureState.panLastY = 0;
+      renderStructureObjects();
+      renderStructureSequence();
+      structureMeasure.classList.remove("active");
+      if (resetFiles) {
+        structureProteinFile.value = "";
+        structureLigandFile.value = "";
+      }
     }
 
     function formatOutput(data) {
