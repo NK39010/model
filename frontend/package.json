@@ -1,0 +1,11 @@
+{
+  "name": "bio-learn-frontend-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --dir react dev",
+    "build": "pnpm --dir react run build",
+    "preview": "pnpm --dir react run preview",
+    "typecheck": "pnpm --dir react exec tsc"
+  }
+}

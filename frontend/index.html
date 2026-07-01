@@ -758,6 +758,7 @@
       <select id="tool">
         <option value="reference_similarity_table">基准序列相似度表</option>
         <option value="pairwise_similarity_matrix">两两相似度矩阵</option>
+        <option value="mafft_alignment">MAFFT 多序列比对</option>
         <option value="ncbi_refseq_lookup">NCBI 编号查询</option>
         <option value="ncbi_blast_lookup">NCBI BLAST 查询</option>
         <option value="primer_design">引物设计</option>
@@ -796,6 +797,60 @@
             输出比对详情
             <span class="field-note">会在结果中加入对齐后的序列和匹配线，文件更长但便于检查。</span>
           </label>
+        </div>
+      </div>
+
+      <div id="mafftControls" class="hidden">
+        <div class="form-grid">
+          <div>
+            <label for="mafftMode">比对模式</label>
+            <select id="mafftMode">
+              <option value="auto">Auto</option>
+              <option value="ginsi">G-INS-i</option>
+              <option value="linsi">L-INS-i</option>
+              <option value="einsi">E-INS-i</option>
+              <option value="fftns2">FFT-NS-2</option>
+            </select>
+            <p id="mafftModeNote" class="field-note"></p>
+          </div>
+          <div>
+            <label for="mafftSequenceType">序列类型</label>
+            <select id="mafftSequenceType">
+              <option value="auto">Auto</option>
+              <option value="dna">DNA</option>
+              <option value="rna">RNA</option>
+              <option value="protein">Protein</option>
+            </select>
+            <p class="field-note">影响字符校验；不确定时使用 Auto。</p>
+          </div>
+          <div>
+            <label for="mafftThreadCount">线程数</label>
+            <input id="mafftThreadCount" type="number" min="1" max="64" value="1">
+            <p class="field-note">本地运行 MAFFT 的线程数；较大值可能占用更多 CPU。</p>
+          </div>
+          <label class="part-option">
+            <input id="mafftStrict" type="checkbox">
+            严格校验
+            <span class="field-note">开启后遇到非法字符会报错；关闭时会自动移除非法字符。</span>
+          </label>
+          <div class="full-row">
+            <label for="mafftFastaText">多序列 FASTA</label>
+            <textarea id="mafftFastaText">>seq1
+MEEPQSDPSV
+>seq2
+MEEPQSEPSI
+>seq3
+MEEPQSGLSV</textarea>
+            <p class="field-note">至少两条序列。上传 FASTA 文件时，会优先使用上传文件内容。</p>
+          </div>
+          <div class="full-row">
+            <label for="mafftFormatHelp">模式说明</label>
+            <pre id="mafftFormatHelp">Auto：由 MAFFT 自动选择策略。
+G-INS-i：全局高精度，适合全长同源、长度接近的序列。
+L-INS-i：局部高精度，适合局部保守区域明显的序列。
+E-INS-i：适合长插入/缺失或多个保守结构域的序列。
+FFT-NS-2：快速模式，适合大量序列的初步比对。</pre>
+          </div>
         </div>
       </div>
 
@@ -1317,6 +1372,13 @@ geneB	ATGGGCCCAA</textarea>
         substitution_matrix: "BLOSUM62",
         gap_score: -10
       },
+      mafft_alignment: {
+        fasta: ">seq1\nMEEPQSDPSV\n>seq2\nMEEPQSEPSI\n>seq3\nMEEPQSGLSV",
+        mode: "auto",
+        sequence_type: "auto",
+        strict: false,
+        thread_count: 1
+      },
       ncbi_refseq_lookup: {
         ids: ["NM_007294"],
         email: "your-email@example.com"
@@ -1418,6 +1480,13 @@ geneB	ATGGGCCCAA</textarea>
     const alignmentGapScore = document.querySelector("#alignmentGapScore");
     const includeAlignmentsOption = document.querySelector("#includeAlignmentsOption");
     const alignmentIncludeAlignments = document.querySelector("#alignmentIncludeAlignments");
+    const mafftControls = document.querySelector("#mafftControls");
+    const mafftMode = document.querySelector("#mafftMode");
+    const mafftModeNote = document.querySelector("#mafftModeNote");
+    const mafftSequenceType = document.querySelector("#mafftSequenceType");
+    const mafftThreadCount = document.querySelector("#mafftThreadCount");
+    const mafftStrict = document.querySelector("#mafftStrict");
+    const mafftFastaText = document.querySelector("#mafftFastaText");
     const blastControls = document.querySelector("#blastControls");
     const blastProgram = document.querySelector("#blastProgram");
     const blastDatabase = document.querySelector("#blastDatabase");
@@ -1551,6 +1620,10 @@ geneB	ATGGGCCCAA</textarea>
         title: "两两相似度矩阵",
         summary: "对一个多序列 FASTA 内的所有序列做两两比较，生成矩阵和长表，适合做聚类、热图或整体相似度概览。"
       },
+      mafft_alignment: {
+        title: "MAFFT 多序列比对",
+        summary: "调用内置 MAFFT 对多条 DNA、RNA 或蛋白序列做多序列比对，默认使用 Auto，也可选择 G-INS-i、L-INS-i、E-INS-i 或 FFT-NS-2。"
+      },
       ncbi_refseq_lookup: {
         title: "NCBI 编号查询",
         summary: "根据 RefSeq 或 GenBank 编号拉取基础记录信息。适合快速核对 accession 对应的序列记录。"
@@ -1652,6 +1725,13 @@ geneB	ATGGGCCCAA</textarea>
       "LI", "NA", "K", "RB", "CS", "MG", "CA", "SR", "BA", "MN", "FE",
       "CO", "NI", "CU", "ZN", "CD", "HG", "AL", "GA", "IN", "SN", "PB"
     ]);
+    const mafftModeDescriptions = {
+      auto: "由 MAFFT 根据序列数量和长度自动选择比对策略，适合不确定该用哪种算法的通用场景。",
+      ginsi: "全局高精度模式，适合全长同源、长度接近、整体相似的序列。",
+      linsi: "局部高精度模式，适合只有部分区域高度保守、局部相似明显的序列。",
+      einsi: "适合存在长插入、长缺失或多个保守结构域的序列，比 G-INS-i 更能处理大 gap。",
+      fftns2: "快速模式，适合序列数量较多、需要快速得到初步比对结果的场景。"
+    };
 
     function loadExample() {
       payload.value = JSON.stringify(examples[tool.value], null, 2);
@@ -1667,6 +1747,7 @@ geneB	ATGGGCCCAA</textarea>
       loadPromoterControls();
       loadMarkerControls();
       loadAlignmentControls();
+      loadMafftControls();
       loadFastaGeneratorControls();
       loadColonyControls();
       loadStructureControls();
@@ -1689,6 +1770,8 @@ geneB	ATGGGCCCAA</textarea>
       }
     });
     alignmentSequenceType.addEventListener("change", updateAlignmentModeControls);
+    mafftMode.addEventListener("change", updateMafftModeNote);
+    mafftFastaText.addEventListener("input", updateFileStatus);
     primerMode.addEventListener("change", updatePrimerModeControls);
     setupQuickOptions();
     loadExample();
@@ -1743,6 +1826,20 @@ geneB	ATGGGCCCAA</textarea>
         alignmentGapScore.value = isProtein ? "-10" : "-2";
       }
       includeAlignmentsOption.classList.toggle("hidden", tool.value !== "reference_similarity_table");
+    }
+
+    function loadMafftControls() {
+      const data = examples.mafft_alignment;
+      mafftMode.value = data.mode || "auto";
+      mafftSequenceType.value = data.sequence_type || "auto";
+      mafftThreadCount.value = data.thread_count || 1;
+      mafftStrict.checked = Boolean(data.strict);
+      mafftFastaText.value = data.fasta || "";
+      updateMafftModeNote();
+    }
+
+    function updateMafftModeNote() {
+      mafftModeNote.textContent = mafftModeDescriptions[mafftMode.value] || "";
     }
 
     function loadBlastControls() {
@@ -1869,6 +1966,9 @@ geneB	ATGGGCCCAA</textarea>
       }
       if (tool.value === "colony_count") {
         return buildColonyPayload();
+      }
+      if (tool.value === "mafft_alignment") {
+        return buildMafftPayload(true);
       }
 
       let requestPayload = await payloadWithSelectedFasta(true);
@@ -2115,6 +2215,32 @@ geneB	ATGGGCCCAA</textarea>
       return data;
     }
 
+    async function buildMafftPayload(strict = true) {
+      const file = fastaFileA.files[0];
+      const data = {
+        mode: mafftMode.value,
+        sequence_type: mafftSequenceType.value,
+        strict: mafftStrict.checked,
+        thread_count: Number(mafftThreadCount.value || 1)
+      };
+      if (file) {
+        data.fasta = await file.text();
+        return data;
+      }
+      const fastaText = mafftFastaText.value.trim();
+      if (fastaText) {
+        data.fasta = fastaText;
+        return data;
+      }
+      if (strict) {
+        throw new Error("MAFFT 多序列比对需要粘贴或上传一个包含至少两条序列的 FASTA。");
+      }
+      return {
+        ...examples.mafft_alignment,
+        ...data
+      };
+    }
+
     function readFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -2213,6 +2339,12 @@ geneB	ATGGGCCCAA</textarea>
         updateFileStatus();
         return;
       }
+      if (tool.value === "mafft_alignment") {
+        const data = await buildMafftPayload(false);
+        payload.value = JSON.stringify(data, null, 2);
+        updateFileStatus();
+        return;
+      }
       const data = await payloadWithSelectedFasta(false);
       payload.value = JSON.stringify(data, null, 2);
       updateFileStatus();
@@ -2267,6 +2399,7 @@ geneB	ATGGGCCCAA</textarea>
       imageGroup.classList.add("hidden");
       structureGroup.classList.add("hidden");
       alignmentControls.classList.add("hidden");
+      mafftControls.classList.add("hidden");
       blastControls.classList.add("hidden");
       primerControls.classList.add("hidden");
       codonControls.classList.add("hidden");
@@ -2285,6 +2418,13 @@ geneB	ATGGGCCCAA</textarea>
         fastaLabelB.textContent = "目标序列 FASTA，可选";
       } else if (tool.value === "pairwise_similarity_matrix") {
         alignmentControls.classList.remove("hidden");
+        fastaLabelA.textContent = "多序列 FASTA，可选";
+        fastaFieldB.classList.add("hidden");
+        fastaFileB.value = "";
+      } else if (tool.value === "mafft_alignment") {
+        mafftControls.classList.remove("hidden");
+        payloadLabel.classList.add("hidden");
+        payload.classList.add("hidden");
         fastaLabelA.textContent = "多序列 FASTA，可选";
         fastaFieldB.classList.add("hidden");
         fastaFileB.value = "";
@@ -2406,6 +2546,17 @@ geneB	ATGGGCCCAA</textarea>
         fileStatus.textContent = fastaFileA.files[0]
           ? `已选择: ${fastaFileA.files[0].name}`
           : "未选择密码子优化输入文件。";
+        return;
+      }
+
+      if (tool.value === "mafft_alignment") {
+        if (fastaFileA.files[0]) {
+          fileStatus.textContent = `已选择: ${fastaFileA.files[0].name}`;
+        } else if (mafftFastaText.value.trim()) {
+          fileStatus.textContent = "将使用文本框中的 MAFFT FASTA。";
+        } else {
+          fileStatus.textContent = "未选择或粘贴 MAFFT 多序列 FASTA。";
+        }
         return;
       }
 
@@ -3631,6 +3782,27 @@ geneB	ATGGGCCCAA</textarea>
           lines.push("", `download fasta: /api/jobs/${data.id}/files/${result.files.fasta}`);
         }
         lines.push("", "FASTA:", result.fasta, "", JSON.stringify(data, null, 2));
+        return lines.join("\n");
+      }
+
+      if (data.tool_name === "mafft_alignment" && data.result) {
+        const result = data.result;
+        const lines = [
+          `status: ${data.status}`,
+          `mode: ${result.mode_label || result.mode}`,
+          `sequence count: ${result.sequence_count}`,
+          `alignment length: ${result.alignment_length}`,
+          `mafft: ${result.mafft_version} (${result.mafft_source})`,
+          "",
+          "name\taligned sequence"
+        ];
+        for (const record of result.aligned_records || []) {
+          lines.push([record.name, record.sequence].join("\t"));
+        }
+        if (data.id && result.files?.aligned_fasta) {
+          lines.push("", `download aligned fasta: /api/jobs/${data.id}/files/${result.files.aligned_fasta}`);
+        }
+        lines.push("", JSON.stringify(data, null, 2));
         return lines.join("\n");
       }
 

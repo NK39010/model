@@ -18,7 +18,7 @@ wheels = [
 [[package]]
 name = "bio-tool-backend-example"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "biopython" },
     { name = "numpy" },

@@ -8,7 +8,10 @@
 reference_similarity_table
 pairwise_similarity_matrix
 ncbi_refseq_lookup
+ncbi_blast_lookup
 sequence_parts_parse
+mafft_alignment
+MSA_quality
 ```
 
 所有工具统一通过任务接口调用：
@@ -37,16 +40,20 @@ uv sync
 启动最小网页和 API：
 
 ```bash
-PYTHONPATH=backend .venv/bin/python backend/app/main.py
+uv run api
 ```
 
 如果端口 `8000` 被占用，服务会自动尝试后续端口。也可以手动指定：
 
 ```bash
-PYTHONPATH=backend .venv/bin/python backend/app/main.py 8010
+uv run api 8010
 ```
-$env:PYTHONPATH='backend'
-.\.venv\Scripts\python.exe -u backend/app/main.py
+
+Windows PowerShell：
+
+```powershell
+uv run api
+```
 
 打开终端打印的地址：
 
@@ -54,13 +61,31 @@ $env:PYTHONPATH='backend'
 http://127.0.0.1:8000
 ```
 
-网页文件位于：
+前端现在优先使用 React 构建产物：
+
+```text
+frontend/dist/index.html
+```
+
+后端 `GET /` 会优先读取并返回这个文件。如果还没有构建 React 前端，则回退到旧静态页面：
 
 ```text
 frontend/index.html
 ```
 
-后端 `GET /` 会读取并返回这个文件。
+React 源码位于：
+
+```text
+frontend/react/
+```
+
+首次安装或修改前端后运行：
+
+```bash
+cd frontend
+pnpm install
+pnpm run build
+```
 
 ## 接口
 
@@ -90,13 +115,15 @@ backend/app/tools/
   具体生物信息工具模块
 
 frontend/
-  静态网页
+  dist/            React 构建产物，后端优先服务
+  react/           React + Vite + TypeScript 源码
+  index.html       旧静态页面，作为回退
 ```
 
 ## 测试
 
 ```bash
-PYTHONPATH=backend .venv/bin/python -m unittest discover backend/app/tests
+uv run python -m unittest discover backend/app/tests
 ```
 
 ## Windows exe / 安装包构建
@@ -136,7 +163,7 @@ dist\installer\BioToolBackendSetup.exe
 不启动网页，直接通过 `JobService` 调用工具：
 
 ```bash
-PYTHONPATH=backend .venv/bin/python backend/app/examples/run_tools.py
+uv run python backend/app/examples/run_tools.py
 ```
 
 ## 新增工具模块
@@ -185,7 +212,7 @@ backend/app/core/config.py
 
 ```bash
 export PYMOL_BIN=/path/to/pymol
-PYTHONPATH=backend .venv/bin/python backend/app/main.py
+uv run api
 ```
 
 请求示例：

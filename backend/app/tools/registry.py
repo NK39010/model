@@ -11,6 +11,8 @@ from app.tools.colony_count.runner import ColonyCountRunner
 from app.tools.codon_optimization.runner import CodonOptimizationRunner
 from app.tools.errors import ToolInputError
 from app.tools.fasta_generator.runner import FastaGeneratorRunner
+from app.tools.mafft.runner import MafftAlignmentRunner
+from app.tools.msa_quality.runner import MsaQualityRunner
 from app.tools.ncbi.runner import NCBIRefSeqLookupRunner
 from app.tools.primer_design.runner import PrimerDesignRunner
 from app.tools.promoter_selection.runner import PromoterSelectionRunner
@@ -27,6 +29,8 @@ TOOL_REGISTRY: dict[str, ToolRunner] = {
     ColonyCountRunner.name: ColonyCountRunner(),
     CodonOptimizationRunner.name: CodonOptimizationRunner(),
     FastaGeneratorRunner.name: FastaGeneratorRunner(),
+    MafftAlignmentRunner.name: MafftAlignmentRunner(),
+    MsaQualityRunner.name: MsaQualityRunner(),
     PrimerDesignRunner.name: PrimerDesignRunner(),
     PromoterSelectionRunner.name: PromoterSelectionRunner(),
     PyMOLControlRunner.name: PyMOLControlRunner(),

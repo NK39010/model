@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlparse
 
-from app.core.config import RESULTS_ROOT
+from app.core.config import FRONTEND_DIST, RESULTS_ROOT
 from app.services.job_service import JobService
 from app.tools.registry import list_tools
 from app.web.pages import load_index_html
@@ -26,6 +26,10 @@ class BioToolRequestHandler(BaseHTTPRequestHandler):
 
         if path == "/":
             self._send_html(load_index_html())
+            return
+
+        if path.startswith("/assets/") or path in {"/favicon.ico", "/vite.svg"}:
+            self._send_frontend_asset(path)
             return
 
         if path == "/api/tools":
@@ -121,13 +125,46 @@ class BioToolRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_frontend_asset(self, request_path: str) -> None:
+        relative = request_path.strip("/")
+        path = FRONTEND_DIST / relative
+        try:
+            resolved = path.resolve(strict=True)
+            root = FRONTEND_DIST.resolve(strict=True)
+        except OSError:
+            self._send_json({"error": "Frontend asset not found."}, HTTPStatus.NOT_FOUND)
+            return
+
+        if root not in resolved.parents or not resolved.is_file():
+            self._send_json({"error": "Invalid frontend asset path."}, HTTPStatus.BAD_REQUEST)
+            return
+
+        body = resolved.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", _content_type(resolved.name))
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
 
 def _content_type(file_name: str) -> str:
     suffix = Path(file_name).suffix.lower()
     if suffix == ".png":
         return "image/png"
+    if suffix == ".svg":
+        return "image/svg+xml"
     if suffix in {".jpg", ".jpeg"}:
         return "image/jpeg"
+    if suffix == ".css":
+        return "text/css; charset=utf-8"
+    if suffix == ".js":
+        return "text/javascript; charset=utf-8"
+    if suffix == ".map":
+        return "application/json; charset=utf-8"
+    if suffix == ".ico":
+        return "image/x-icon"
+    if suffix == ".woff2":
+        return "font/woff2"
     if suffix == ".csv":
         return "text/csv; charset=utf-8"
     if suffix in {".fa", ".fasta", ".fna", ".faa"}:

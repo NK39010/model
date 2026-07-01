@@ -30,4 +30,6 @@ def writable_data_path(relative_path: str) -> Path:
 
 
 RESULTS_ROOT = writable_data_path("data/results")
-FRONTEND_INDEX = resource_path("frontend/index.html")
+FRONTEND_DIST = resource_path("frontend/dist")
+FRONTEND_DIST_INDEX = FRONTEND_DIST / "index.html"
+FRONTEND_INDEX = FRONTEND_DIST_INDEX if FRONTEND_DIST_INDEX.exists() else resource_path("frontend/index.html")

@@ -7,6 +7,14 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 
 ROOT = Path.cwd()
+MAFFT_VENDOR = ROOT / "backend" / "vendor" / "mafft"
+MAFFT_DATAS = [(str(MAFFT_VENDOR), "backend/vendor/mafft")] if MAFFT_VENDOR.exists() else []
+FRONTEND_DIST = ROOT / "frontend" / "dist"
+FRONTEND_DATAS = (
+    [(str(FRONTEND_DIST), "frontend/dist")]
+    if FRONTEND_DIST.exists()
+    else [(str(ROOT / "frontend" / "index.html"), "frontend")]
+)
 
 
 a = Analysis(
@@ -14,7 +22,8 @@ a = Analysis(
     pathex=[str(ROOT / "backend")],
     binaries=[],
     datas=[
-        (str(ROOT / "frontend" / "index.html"), "frontend"),
+        *FRONTEND_DATAS,
+        *MAFFT_DATAS,
         *collect_data_files("Bio.Align"),
     ],
     hiddenimports=[
