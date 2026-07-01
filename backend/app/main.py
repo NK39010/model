@@ -6,10 +6,11 @@ import sys
 from http.server import ThreadingHTTPServer
 
 from app.api.handlers import BioToolRequestHandler
-from app.core.config import DEFAULT_HOST, DEFAULT_PORT, PORT_SEARCH_LIMIT
+from app.core.config import DEFAULT_HOST, DEFAULT_PORT, PORT_SEARCH_LIMIT, load_runtime_env
 
 
 def main() -> None:
+    load_runtime_env()
     host = DEFAULT_HOST
     port = _get_port()
     port = _find_available_port(host, port)

@@ -9,7 +9,7 @@ export function SequenceGapChart({ rows }: SequenceGapChartProps) {
 
   return (
     <section className="report-block">
-      <h3>Per-sequence Gap Ratio</h3>
+      <h3>各序列 GAP 比例</h3>
       <div className="gap-bars">
         {sorted.map((row) => (
           <div className="gap-bar-row" key={row.name}>

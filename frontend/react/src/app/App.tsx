@@ -1,9 +1,14 @@
 import { useState } from "react";
+import { ErrorBoundary } from "../shared/components/ErrorBoundary";
+import { BmgePanel } from "../tools/bmge/BmgePanel";
+import { GgtreePanel } from "../tools/ggtree/GgtreePanel";
+import { IqtreePanel } from "../tools/iqtree/IqtreePanel";
 import { MafftPanel } from "../tools/mafft/MafftPanel";
 import { MsaQualityPanel } from "../tools/msa-quality/MsaQualityPanel";
+import { TrimalPanel } from "../tools/trimal/TrimalPanel";
 
 type CategoryKey = "msa";
-type ToolKey = "mafft" | "msa-quality";
+type ToolKey = "mafft" | "msa-quality" | "trimal" | "bmge" | "iqtree" | "ggtree";
 
 const CATEGORIES: Array<{ key: CategoryKey; label: string; subtitle: string; shortLabel: string }> = [
   {
@@ -17,7 +22,11 @@ const CATEGORIES: Array<{ key: CategoryKey; label: string; subtitle: string; sho
 const TOOLS: Record<CategoryKey, Array<{ key: ToolKey; label: string; subtitle: string; shortLabel: string }>> = {
   msa: [
     { key: "mafft", label: "MAFFT", subtitle: "多序列比对", shortLabel: "MAF" },
-    { key: "msa-quality", label: "MSA Quality", subtitle: "比对质量评估", shortLabel: "QUA" }
+    { key: "msa-quality", label: "MSA Quality", subtitle: "比对质量评估", shortLabel: "QUA" },
+    { key: "trimal", label: "trimAl", subtitle: "比对修剪", shortLabel: "TRM" },
+    { key: "bmge", label: "BMGE", subtitle: "熵筛选修剪", shortLabel: "BMG" },
+    { key: "iqtree", label: "IQ-TREE", subtitle: "系统发育树", shortLabel: "TREE" },
+    { key: "ggtree", label: "R / ggtree", subtitle: "发育树绘图", shortLabel: "GGT" }
   ]
 };
 
@@ -25,12 +34,41 @@ export function App() {
   const [activeCategory, setActiveCategory] = useState<CategoryKey>("msa");
   const [activeTool, setActiveTool] = useState<ToolKey>("mafft");
   const [qualityInput, setQualityInput] = useState("");
+  const [trimalInput, setTrimalInput] = useState("");
+  const [bmgeInput, setBmgeInput] = useState("");
+  const [iqtreeInput, setIqtreeInput] = useState("");
+  const [ggtreeInput, setGgtreeInput] = useState("");
   const [isCategoryCollapsed, setIsCategoryCollapsed] = useState(false);
   const [isToolCollapsed, setIsToolCollapsed] = useState(false);
 
   const analyzeAlignment = (alignedFasta: string) => {
     setQualityInput(alignedFasta);
     setActiveTool("msa-quality");
+  };
+
+  const trimAlignment = (alignedFasta: string) => {
+    setTrimalInput(alignedFasta);
+    setActiveTool("trimal");
+  };
+
+  const bmgeTrimAlignment = (alignedFasta: string) => {
+    setBmgeInput(alignedFasta);
+    setActiveTool("bmge");
+  };
+
+  const analyzeTrimmedAlignment = (trimmedFasta: string) => {
+    setQualityInput(trimmedFasta);
+    setActiveTool("msa-quality");
+  };
+
+  const buildTree = (alignedFasta: string) => {
+    setIqtreeInput(alignedFasta);
+    setActiveTool("iqtree");
+  };
+
+  const visualizeTree = (newick: string) => {
+    setGgtreeInput(newick);
+    setActiveTool("ggtree");
   };
 
   const chooseCategory = (category: CategoryKey) => {
@@ -120,11 +158,26 @@ export function App() {
             <span>{activeCategoryMeta.label}</span>
             <strong>{activeToolMeta.label}</strong>
           </div>
-          {activeTool === "mafft" ? (
-            <MafftPanel onAnalyzeAlignment={analyzeAlignment} />
-          ) : (
-            <MsaQualityPanel initialFasta={qualityInput} />
-          )}
+          <ErrorBoundary resetKey={`${activeCategory}-${activeTool}`}>
+            {activeTool === "mafft" ? (
+              <MafftPanel onAnalyzeAlignment={analyzeAlignment} onBuildTree={buildTree} />
+            ) : null}
+            {activeTool === "msa-quality" ? (
+              <MsaQualityPanel initialFasta={qualityInput} onTrimAlignment={trimAlignment} onBmgeAlignment={bmgeTrimAlignment} onBuildTree={buildTree} />
+            ) : null}
+            {activeTool === "trimal" ? (
+              <TrimalPanel initialFasta={trimalInput} onAnalyzeTrimmed={analyzeTrimmedAlignment} onBuildTree={buildTree} />
+            ) : null}
+            {activeTool === "bmge" ? (
+              <BmgePanel initialFasta={bmgeInput} onAnalyzeTrimmed={analyzeTrimmedAlignment} onBuildTree={buildTree} />
+            ) : null}
+            {activeTool === "iqtree" ? (
+              <IqtreePanel initialFasta={iqtreeInput} onVisualizeTree={visualizeTree} />
+            ) : null}
+            {activeTool === "ggtree" ? (
+              <GgtreePanel initialNewick={ggtreeInput} />
+            ) : null}
+          </ErrorBoundary>
         </div>
       </section>
     </main>

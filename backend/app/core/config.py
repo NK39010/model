@@ -1,6 +1,7 @@
 # Defines shared runtime configuration for the backend application.
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -8,6 +9,8 @@ from pathlib import Path
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8000
 PORT_SEARCH_LIMIT = 20
+
+
 def project_root() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
@@ -27,6 +30,30 @@ def writable_data_path(relative_path: str) -> Path:
     else:
         base_path = project_root()
     return base_path / relative_path
+
+
+def load_runtime_env(env_file: Path | None = None) -> None:
+    """Load simple KEY=VALUE lines from the project-local .env file."""
+    path = env_file or project_root() / ".env"
+    if not path.exists():
+        return
+
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        os.environ[key] = _clean_env_value(value)
+
+
+def _clean_env_value(value: str) -> str:
+    cleaned = value.strip()
+    if len(cleaned) >= 2 and cleaned[0] == cleaned[-1] and cleaned[0] in {"'", '"'}:
+        return cleaned[1:-1]
+    return cleaned
 
 
 RESULTS_ROOT = writable_data_path("data/results")

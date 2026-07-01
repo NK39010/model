@@ -52,6 +52,27 @@ class JobServiceTest(unittest.TestCase):
             self.assertEqual(job.result["sequence_ids"], ["seq1", "seq2"])
             self.assertEqual(len(job.result["matrix"]), 2)
 
+    def test_job_service_restores_persisted_job_after_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as tempdir:
+            results_root = Path(tempdir)
+            first_service = JobService(results_root=results_root)
+            submitted = first_service.submit_and_run(
+                "pairwise_similarity_matrix",
+                {
+                    "sequences": [
+                        {"id": "seq1", "sequence": "ACGT"},
+                        {"id": "seq2", "sequence": "ACCT"},
+                    ],
+                },
+            )
+
+            restored = JobService(results_root=results_root).get_job(submitted.id)
+
+            self.assertIsNotNone(restored)
+            self.assertEqual(restored.id, submitted.id)
+            self.assertEqual(restored.status, JobStatus.COMPLETED)
+            self.assertEqual(restored.result["sequence_ids"], ["seq1", "seq2"])
+
     def test_job_service_returns_standard_error_for_bad_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             service = JobService(results_root=Path(tempdir))

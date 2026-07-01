@@ -87,6 +87,71 @@ pnpm install
 pnpm run build
 ```
 
+## 本地工具配置
+
+部分工具会调用本机安装的命令行程序。推荐把这些程序链接或复制到 uv 虚拟环境里，让 `uv run` 自动通过 `.venv/bin` 或 `.venv\Scripts` 找到它们。项目启动时也会读取根目录 `.env`，用于必要时覆盖本机路径；`.env` 不会提交到仓库。
+
+首次配置：
+
+```bash
+cp .env.example .env
+```
+
+### IQ-TREE
+
+`iqtree_phylogeny` 需要真实 IQ-TREE 可执行文件。后端查找顺序是：
+
+```text
+IQTREE_BINARY -> iqtree3 -> iqtree2 -> iqtree
+```
+
+macOS Apple Silicon 推荐：
+
+```bash
+brew install iqtree3
+```
+
+然后把 IQ-TREE 包装进 uv 虚拟环境：
+
+```bash
+uv run python scripts/link_iqtree_to_venv.py
+```
+
+这会在 macOS/Linux 写入：
+
+```text
+.venv/bin/iqtree3
+```
+
+Windows 会写入：
+
+```text
+.venv\Scripts\iqtree3.exe
+```
+
+Windows 上如果还没有安装 IQ-TREE，运行同一个脚本会自动从官方 GitHub Releases 下载最新 Windows zip，解压到：
+
+```text
+.venv\tools\iqtree\
+```
+
+然后把 `iqtree3.exe` 放进 `.venv\Scripts`。因此 Windows 初始化可以直接执行：
+
+```powershell
+uv sync
+uv run python scripts\link_iqtree_to_venv.py
+uv run api
+```
+
+若脚本不能创建符号链接，会退回复制 exe。
+
+如果不想放进虚拟环境，也可以在 `.env` 写绝对路径：
+
+```text
+IQTREE_BINARY=/opt/homebrew/bin/iqtree3
+IQTREE_BINARY="C:\Program Files\IQ-TREE\iqtree3.exe"
+```
+
 ## 接口
 
 ```text

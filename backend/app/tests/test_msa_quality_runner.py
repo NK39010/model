@@ -78,6 +78,48 @@ class MsaQualityRunnerTest(unittest.TestCase):
                 }
             )
 
+    def test_auto_sequence_type_uses_n_for_dna_ambiguity(self) -> None:
+        runner = MsaQualityRunner()
+        with tempfile.TemporaryDirectory() as tempdir:
+            result = runner.run(
+                {
+                    "fasta": ">seq1\nATG\n>seq2\nACG\n>seq3\nAAG\n",
+                    "sequence_type": "auto",
+                },
+                Path(tempdir),
+            )
+
+        self.assertEqual(result["sequence_type"], "dna")
+        self.assertEqual(result["consensus"]["sequence"], "ANG")
+
+    def test_auto_sequence_type_detects_rna(self) -> None:
+        runner = MsaQualityRunner()
+        with tempfile.TemporaryDirectory() as tempdir:
+            result = runner.run(
+                {
+                    "fasta": ">seq1\nAUG\n>seq2\nACG\n>seq3\nAAG\n",
+                    "sequence_type": "auto",
+                },
+                Path(tempdir),
+            )
+
+        self.assertEqual(result["sequence_type"], "rna")
+        self.assertEqual(result["consensus"]["sequence"], "ANG")
+
+    def test_auto_sequence_type_uses_x_for_protein_ambiguity(self) -> None:
+        runner = MsaQualityRunner()
+        with tempfile.TemporaryDirectory() as tempdir:
+            result = runner.run(
+                {
+                    "fasta": ">seq1\nARN\n>seq2\nAQD\n>seq3\nACE\n",
+                    "sequence_type": "auto",
+                },
+                Path(tempdir),
+            )
+
+        self.assertEqual(result["sequence_type"], "protein")
+        self.assertEqual(result["consensus"]["sequence"], "AXX")
+
     def test_job_service_runs_registered_msa_quality_tool(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             service = JobService(results_root=Path(tempdir))

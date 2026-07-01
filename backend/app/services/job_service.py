@@ -4,11 +4,12 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+import re
 from typing import Any
 from uuid import uuid4
 
 from app.schemas.common import JobStatus
-from app.services.file_service import write_json
+from app.services.file_service import read_json, write_json
 from app.tools.errors import ToolError
 from app.tools.registry import get_tool_runner
 
@@ -81,8 +82,23 @@ class JobService:
         return job
 
     def get_job(self, job_id: str) -> JobRecord | None:
-        """Return a previously submitted job from memory."""
-        return self.jobs.get(job_id)
+        """Return a job from memory or its persisted job record."""
+        if re.fullmatch(r"job_[0-9a-f]{12}", job_id) is None:
+            return None
+        cached = self.jobs.get(job_id)
+        if cached is not None:
+            return cached
+
+        job_path = self.results_root / job_id / "job.json"
+        if not job_path.is_file():
+            return None
+        try:
+            data = read_json(job_path)
+            job = JobRecord(**data)
+        except (OSError, TypeError, ValueError):
+            return None
+        self.jobs[job_id] = job
+        return job
 
     @staticmethod
     def _now() -> str:

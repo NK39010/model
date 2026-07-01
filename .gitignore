@@ -7,6 +7,9 @@ venv/
 node_modules/
 .pnpm-store/
 data/results/
+temp/
+.env
+.env.local
 server.out.log
 server.err.log
 dist/

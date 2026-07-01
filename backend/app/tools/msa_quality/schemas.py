@@ -14,6 +14,10 @@ SEQUENCE_ALPHABETS = {
     "auto": set("ABCDEFGHIJKLMNOPQRSTUVWXYZ*-"),
 }
 
+DNA_ALPHABET = SEQUENCE_ALPHABETS["dna"]
+RNA_ALPHABET = SEQUENCE_ALPHABETS["rna"]
+PROTEIN_ALPHABET = SEQUENCE_ALPHABETS["protein"]
+
 
 @dataclass(frozen=True)
 class MsaRecordInput:
@@ -48,11 +52,12 @@ class MsaQualityInput:
             raise ToolInputError("MSA_quality requires at least two aligned sequences.")
         _ensure_unique_names(records)
         _ensure_same_alignment_length(records)
-        _validate_characters(records, sequence_type, bool(payload.get("strict", False)))
+        resolved_sequence_type = _resolve_sequence_type(records, sequence_type)
+        _validate_characters(records, resolved_sequence_type, bool(payload.get("strict", False)))
 
         return cls(
             records=records,
-            sequence_type=sequence_type,
+            sequence_type=resolved_sequence_type,
             majority_threshold=_bounded_float(payload.get("majority_threshold", 0.6), 0.0, 1.0, "majority_threshold"),
             gap_consensus_threshold=_bounded_float(
                 payload.get("gap_consensus_threshold", 0.5),
@@ -179,6 +184,20 @@ def _validate_characters(records: list[MsaRecordInput], sequence_type: str, stri
         )
 
 
+def _resolve_sequence_type(records: list[MsaRecordInput], sequence_type: str) -> str:
+    if sequence_type != "auto":
+        return sequence_type
+
+    observed = {char for record in records for char in record.sequence}
+    if observed <= DNA_ALPHABET:
+        return "dna"
+    if observed <= RNA_ALPHABET:
+        return "rna"
+    if observed <= PROTEIN_ALPHABET:
+        return "protein"
+    return "protein"
+
+
 def _bounded_float(value: object, min_value: float, max_value: float, field_name: str) -> float:
     try:
         parsed = float(value)
@@ -190,4 +209,3 @@ def _bounded_float(value: object, min_value: float, max_value: float, field_name
             {field_name: parsed, "min": min_value, "max": max_value},
         )
     return parsed
-

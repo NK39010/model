@@ -122,6 +122,10 @@ Alignment browser with fixed sequence names and position ruler
 
 The alignment browser should use windowed rendering for long alignments. Do not render extremely long alignments as one giant DOM block.
 
+Visualization components must never expand beyond or visually escape their report/background container. The outer visualization block must use `min-width: 0`, `max-width: 100%`, and explicit overflow containment. If a heatmap, chart, alignment, or user-sized canvas is larger than the available width, keep the background frame fixed and provide scrolling inside a dedicated child viewport. Do not place `max-content`, an oversized canvas, or a fixed pixel width directly on a report grid item or background card.
+
+Any UI area that can display many sequences, sequence pairs, outlier rows, alignment rows, file rows, or long tabular result lists must have an internal scroll viewport with an explicit maximum height. Do not let sequence-heavy tables or lists grow unbounded and push the whole report/page taller. Keep headers visible where useful, for example with sticky table headers, and preserve horizontal scrolling for long sequence names or many columns.
+
 ### State Isolation
 
 Each module owns its own local state. Avoid global mutable state for tool-specific values.
@@ -141,6 +145,12 @@ global selectedSequence shared across unrelated tools
 module A mutates module B state
 hidden DOM state used as source of truth across tools
 ```
+
+### Tool-local History
+
+Do not implement a global history center for tool runs unless explicitly requested. History recall should live inside each tool module, usually in the tool input/header area as a small clock/history icon at the upper right. Each tool should show only its own local history entries.
+
+For local history, use user-facing file names as the primary record title. Tool identifiers and task labels may be shown only as subtle secondary metadata if needed. Keep the first implementation local to the browser and lightweight; do not require backend persistence for basic recall. Restore history through the owning tool's public state/payload path, not by mutating another tool's private state.
 
 ### API Boundary
 
@@ -216,4 +226,3 @@ Canvas only when alignment size makes DOM rendering too slow
 ```
 
 Migrate incrementally. Start with MAFFT and MSA_quality, then move other tools one by one.
-

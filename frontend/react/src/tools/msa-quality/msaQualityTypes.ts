@@ -53,6 +53,7 @@ export interface PositionQualityRow {
   normalized_entropy: number;
   consensus: string;
   consensus_support: number;
+  is_conserved?: boolean;
   is_high_gap: boolean;
   is_low_conservation: boolean;
   is_high_entropy: boolean;

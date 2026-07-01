@@ -7,10 +7,13 @@ from app.tools.alignment.runner import (
 )
 from app.tools.base import ToolRunner
 from app.tools.blast.runner import NCBIBlastLookupRunner
+from app.tools.bmge.runner import BmgeAlignmentTrimmingRunner
 from app.tools.colony_count.runner import ColonyCountRunner
 from app.tools.codon_optimization.runner import CodonOptimizationRunner
 from app.tools.errors import ToolInputError
 from app.tools.fasta_generator.runner import FastaGeneratorRunner
+from app.tools.ggtree.runner import GgtreeVisualizationRunner
+from app.tools.iqtree.runner import IqtreePhylogenyRunner
 from app.tools.mafft.runner import MafftAlignmentRunner
 from app.tools.msa_quality.runner import MsaQualityRunner
 from app.tools.ncbi.runner import NCBIRefSeqLookupRunner
@@ -19,6 +22,7 @@ from app.tools.promoter_selection.runner import PromoterSelectionRunner
 from app.tools.pymol_control.runner import PyMOLControlRunner
 from app.tools.resistance_marker_selection.runner import ResistanceMarkerSelectionRunner
 from app.tools.sequence_parts.runner import SequencePartsParseRunner
+from app.tools.trimal.runner import TrimalAlignmentTrimmingRunner
 
 
 TOOL_REGISTRY: dict[str, ToolRunner] = {
@@ -26,9 +30,12 @@ TOOL_REGISTRY: dict[str, ToolRunner] = {
     PairwiseSimilarityMatrixRunner.name: PairwiseSimilarityMatrixRunner(),
     NCBIRefSeqLookupRunner.name: NCBIRefSeqLookupRunner(),
     NCBIBlastLookupRunner.name: NCBIBlastLookupRunner(),
+    BmgeAlignmentTrimmingRunner.name: BmgeAlignmentTrimmingRunner(),
     ColonyCountRunner.name: ColonyCountRunner(),
     CodonOptimizationRunner.name: CodonOptimizationRunner(),
     FastaGeneratorRunner.name: FastaGeneratorRunner(),
+    GgtreeVisualizationRunner.name: GgtreeVisualizationRunner(),
+    IqtreePhylogenyRunner.name: IqtreePhylogenyRunner(),
     MafftAlignmentRunner.name: MafftAlignmentRunner(),
     MsaQualityRunner.name: MsaQualityRunner(),
     PrimerDesignRunner.name: PrimerDesignRunner(),
@@ -36,6 +43,7 @@ TOOL_REGISTRY: dict[str, ToolRunner] = {
     PyMOLControlRunner.name: PyMOLControlRunner(),
     ResistanceMarkerSelectionRunner.name: ResistanceMarkerSelectionRunner(),
     SequencePartsParseRunner.name: SequencePartsParseRunner(),
+    TrimalAlignmentTrimmingRunner.name: TrimalAlignmentTrimmingRunner(),
 }
 
 
