@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { cancelJob, getJob, getJobInput } from "../../api/jobs";
+import type { MouseEvent as ReactMouseEvent } from "react";
+import { cancelJob, fileUrl, getJob, getJobInput } from "../../api/jobs";
 import { FilePicker } from "../../shared/components/FilePicker";
 import { HelpTip } from "../../shared/components/HelpTip";
-import { PhylogeneticTreePreview, type PhylogeneticTreePreviewHandle, type TreeAnnotation } from "../../shared/components/PhylogeneticTreePreview";
+import { PhylogeneticTreePreview, type PhylogeneticTreePreviewHandle, type TreeAnnotation, type TreeLabelOverride } from "../../shared/components/PhylogeneticTreePreview";
 import { ResultFiles } from "../../shared/components/ResultFiles";
 import { StatusMessage } from "../../shared/components/StatusMessage";
 import { ToolHistoryMenu } from "../../shared/components/ToolHistoryMenu";
@@ -11,6 +12,7 @@ import { useRunTimer } from "../../shared/hooks/useRunTimer";
 import type { JobRecord } from "../../shared/types/job";
 import { addToolHistory, readToolHistory, type ToolHistoryItem } from "../../shared/utils/toolHistory";
 import { runGgtree } from "./ggtreeApi";
+import { buildGgtreeStyleSpec, GGPLOT_MM_TO_CSS_PX, ggtreeCanvasToPreviewPixels, ggtreeSizeToPreviewPixels, resolveEffectiveGgtreeStyle } from "./ggtreeStyleSpec";
 import type { GgtreePayload, GgtreeResult } from "./ggtreeTypes";
 
 const TOOL_NAME = "ggtree_visualization";
@@ -19,18 +21,38 @@ const DEFAULT_STYLE: Omit<GgtreePayload, "newick"> = {
   layout: "rectangular",
   show_tip_labels: true,
   show_support: true,
+  show_nodes: true,
   show_branch_length: true,
+  align_tip_labels: false,
   tip_font_size: 3,
+  tip_label_offset: 0.02,
+  tip_label_angle: 0,
   branch_width: 0.7,
   branch_color: "#52675b",
   tip_label_color: "#17211c",
+  support_mode: "text",
+  support_font_size: 2.4,
   support_color: "#9a5a35",
   background_color: "#ffffff",
   support_threshold: 0,
+  tree_theme: "publication",
+  x_expand: 0.08,
+  right_margin: 10,
+  open_angle: 10,
+  auto_size: true,
   dpi: 300,
   width: 11,
-  height: 8
+  height: 8,
+  label_overrides: {},
+  support_overrides: {},
+  node_overrides: {}
 };
+
+type TreeContextMenu =
+  | { kind: "canvas"; x: number; y: number }
+  | { kind: "tip"; x: number; y: number; tipName: string }
+  | { kind: "support"; x: number; y: number; supportId: string; supportLabel: string }
+  | { kind: "node"; x: number; y: number; nodeId: string; nodeLabel: string };
 
 interface GgtreePanelProps {
   initialNewick?: string;
@@ -97,7 +119,7 @@ export function GgtreePanel({ initialNewick = "", onRunningChange }: GgtreePanel
         addToolHistory<GgtreePayload>(TOOL_NAME, {
           fileName: inputFile?.name ?? "tree.newick",
           summary: `${treeSummary.tipCount} tips · ${layoutLabel(payload.layout)}`,
-          paramsSummary: `${payload.width} × ${payload.height} in · ${payload.tip_font_size} pt`,
+          paramsSummary: `${payload.width} × ${payload.height} in · 字号 ${payload.tip_font_size} mm`,
           payload,
           jobId: nextJob.id,
           inputFileSize: inputFile?.size
@@ -214,7 +236,7 @@ export function GgtreePanel({ initialNewick = "", onRunningChange }: GgtreePanel
         ) : error ? (
           <StatusMessage tone="error">{error}</StatusMessage>
         ) : (
-          <StatusMessage>上传或粘贴 Newick 后点击 RUN，进入实时 React 树图设计界面。</StatusMessage>
+          <StatusMessage>上传或粘贴 Newick 后点击 RUN，进入 ggtree 参数设计界面。</StatusMessage>
         )}
       </div>
     </section>
@@ -241,7 +263,7 @@ function GgtreeDesignStudio({
   const [zoom, setZoom] = useState(100);
   const [purposeMode, setPurposeMode] = useState<"topology" | "distance" | "large" | "paper">("distance");
   const [labelMode, setLabelMode] = useState<"auto" | "all" | "search" | "hover">("auto");
-  const [supportMode, setSupportMode] = useState<"none" | "auto" | "all" | "hover" | "low" | "dots">("dots");
+  const [supportMode, setSupportMode] = useState<GgtreePayload["support_mode"]>(payload.support_mode);
   const [lowSupportThreshold, setLowSupportThreshold] = useState(70);
   const [radialScale, setRadialScale] = useState(1);
   const [fanAngle, setFanAngle] = useState(300);
@@ -251,10 +273,105 @@ function GgtreeDesignStudio({
   const [searchQuery, setSearchQuery] = useState("");
   const [collapseMinTips, setCollapseMinTips] = useState(0);
   const [annotationText, setAnnotationText] = useState("");
+  const [previewLabelTransforms, setPreviewLabelTransforms] = useState<Record<string, Pick<TreeLabelOverride, "translate_x" | "translate_y" | "angle">>>({});
+  const [previewMode, setPreviewMode] = useState<"react" | "ggtree">(result ? "ggtree" : "react");
+  const [realPreviewJob, setRealPreviewJob] = useState<JobRecord<GgtreeResult> | null>(null);
+  const [isRealPreviewLoading, setIsRealPreviewLoading] = useState(false);
+  const [realPreviewError, setRealPreviewError] = useState("");
+  const [realSvgMarkup, setRealSvgMarkup] = useState("");
+  const previewRequestRef = useRef(0);
+  const dragRef = useRef<{ pointerId: number; x: number; y: number; left: number; top: number } | null>(null);
+  const [isDraggingCanvas, setIsDraggingCanvas] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<PhylogeneticTreePreviewHandle | null>(null);
   const treeSummary = useMemo(() => summarizeNewick(payload.newick), [payload.newick]);
+  const effectiveStyle = useMemo(
+    () => resolveEffectiveGgtreeStyle(payload, treeSummary.tipCount),
+    [payload, treeSummary.tipCount]
+  );
+  const styleFingerprint = useMemo(
+    () => JSON.stringify(buildGgtreeStyleSpec(payload, treeSummary.tipCount)),
+    [payload, treeSummary.tipCount]
+  );
+  const [renderedFingerprint, setRenderedFingerprint] = useState(result ? styleFingerprint : "");
+  const displayedPreviewResult = realPreviewJob?.result ?? result;
+  const displayedPreviewJobId = realPreviewJob?.id ?? jobId;
+  const realPreviewFile = displayedPreviewResult?.files.svg ?? displayedPreviewResult?.files.png;
+  const realPreviewIsCurrent = Boolean(displayedPreviewResult && renderedFingerprint === styleFingerprint);
+  const tipNames = useMemo(() => new Set(extractNewickTipNames(payload.newick)), [payload.newick]);
   const annotations = useMemo(() => parseAnnotationCsv(annotationText), [annotationText]);
+  const previewLabelOverrides = useMemo(() => {
+    const merged: Record<string, TreeLabelOverride> = { ...payload.label_overrides };
+    Object.entries(previewLabelTransforms).forEach(([tipName, transform]) => {
+      merged[tipName] = { ...(merged[tipName] ?? {}), ...transform };
+    });
+    return merged;
+  }, [payload.label_overrides, previewLabelTransforms]);
+  const [contextMenu, setContextMenu] = useState<TreeContextMenu | null>(null);
+
+  useEffect(() => setPreviewLabelTransforms({}), [payload.layout, payload.newick]);
+
+  useEffect(() => {
+    setSupportMode(payload.support_mode);
+    setAlignTips(payload.align_tip_labels);
+  }, [payload.align_tip_labels, payload.support_mode]);
+  useEffect(() => {
+    if (!result) return;
+    setRenderedFingerprint(styleFingerprint);
+    setPreviewMode("ggtree");
+  }, [result]);
+  useEffect(() => {
+    if (previewMode !== "ggtree" || realPreviewIsCurrent) return;
+    const requestId = previewRequestRef.current + 1;
+    previewRequestRef.current = requestId;
+    const timer = window.setTimeout(async () => {
+      setIsRealPreviewLoading(true);
+      setRealPreviewError("");
+      try {
+        const nextJob = await runGgtree(payload);
+        if (previewRequestRef.current !== requestId) return;
+        if (!nextJob.result) throw new Error(formatJobError(nextJob.error));
+        setRealPreviewJob(nextJob);
+        setRenderedFingerprint(styleFingerprint);
+      } catch (caught) {
+        if (previewRequestRef.current === requestId) {
+          setRealPreviewError(caught instanceof Error ? caught.message : "ggtree 真实预览生成失败。");
+        }
+      } finally {
+        if (previewRequestRef.current === requestId) setIsRealPreviewLoading(false);
+      }
+    }, 650);
+    return () => {
+      window.clearTimeout(timer);
+      if (!isRealPreviewLoading) previewRequestRef.current += 1;
+    };
+  }, [payload, previewMode, realPreviewIsCurrent, styleFingerprint]);
+  useEffect(() => {
+    const svgFile = displayedPreviewResult?.files.svg;
+    if (!displayedPreviewJobId || !svgFile) {
+      setRealSvgMarkup("");
+      return;
+    }
+    let active = true;
+    fetch(fileUrl(displayedPreviewJobId, svgFile))
+      .then((response) => {
+        if (!response.ok) throw new Error("Unable to load ggtree SVG preview.");
+        return response.text();
+      })
+      .then((markup) => { if (active) setRealSvgMarkup(markup); })
+      .catch(() => { if (active) setRealSvgMarkup(""); });
+    return () => { active = false; };
+  }, [displayedPreviewJobId, displayedPreviewResult?.files.svg]);
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", close);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("keydown", close);
+    };
+  }, [contextMenu]);
 
   const centerCanvas = () => {
     const viewport = viewportRef.current;
@@ -268,10 +385,72 @@ function GgtreeDesignStudio({
   useLayoutEffect(() => {
     const frame = window.requestAnimationFrame(centerCanvas);
     return () => window.cancelAnimationFrame(frame);
-  }, [centerGap, collapseMinTips, fanAngle, payload.layout, radialScale, tipSpacing, zoom]);
+  }, [centerGap, collapseMinTips, fanAngle, payload.layout, radialScale, tipSpacing]);
+
+  const zoomAtPointer = (event: React.WheelEvent<HTMLDivElement>) => {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const rect = viewport.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const pointerY = event.clientY - rect.top;
+    const previousScale = zoom / 100;
+    const contentX = (viewport.scrollLeft + pointerX) / previousScale;
+    const contentY = (viewport.scrollTop + pointerY) / previousScale;
+    const nextZoom = Math.max(10, Math.min(200, zoom + (event.deltaY < 0 ? 10 : -10)));
+    if (nextZoom === zoom) return;
+    setZoom(nextZoom);
+    window.requestAnimationFrame(() => {
+      const nextScale = nextZoom / 100;
+      viewport.scrollTo({
+        left: Math.max(0, contentX * nextScale - pointerX),
+        top: Math.max(0, contentY * nextScale - pointerY)
+      });
+    });
+  };
+
+  const startCanvasDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 || (event.target instanceof Element && event.target.closest("button, input, select, textarea, .ggtree-context-menu, .tree-tip-group"))) return;
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      left: viewport.scrollLeft,
+      top: viewport.scrollTop
+    };
+    viewport.setPointerCapture(event.pointerId);
+    setIsDraggingCanvas(true);
+  };
+
+  const moveCanvasDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const viewport = viewportRef.current;
+    if (!drag || !viewport || drag.pointerId !== event.pointerId) return;
+    viewport.scrollLeft = drag.left - (event.clientX - drag.x);
+    viewport.scrollTop = drag.top - (event.clientY - drag.y);
+  };
+
+  const endCanvasDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const viewport = viewportRef.current;
+    if (dragRef.current?.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setIsDraggingCanvas(false);
+    if (viewport?.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+  };
 
   const fitCanvas = () => {
     const viewport = viewportRef.current;
+    if (viewport && previewMode === "ggtree") {
+      const scale = Math.min(
+        (viewport.clientWidth - 48) / ggtreeCanvasToPreviewPixels(effectiveStyle.width),
+        (viewport.clientHeight - 48) / ggtreeCanvasToPreviewPixels(effectiveStyle.height)
+      );
+      setZoom(Math.max(10, Math.min(200, Math.round(scale * 100))));
+      return;
+    }
     const svg = viewport?.querySelector("svg");
     if (!viewport || !svg) return;
     const viewBox = svg.viewBox.baseVal;
@@ -279,18 +458,91 @@ function GgtreeDesignStudio({
     const scale = Math.min((viewport.clientWidth - 48) / viewBox.width, (viewport.clientHeight - 48) / viewBox.height);
     setZoom(Math.max(10, Math.min(200, Math.round(scale * 100))));
   };
+  const openCanvasMenu = (event: ReactMouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({ kind: "canvas", x: event.clientX, y: event.clientY });
+  };
+  const openTipMenu = (event: ReactMouseEvent, tipName: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({ kind: "tip", x: event.clientX, y: event.clientY, tipName });
+  };
+  const openSupportMenu = (event: ReactMouseEvent, supportId: string, supportLabel: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({ kind: "support", x: event.clientX, y: event.clientY, supportId, supportLabel });
+  };
+  const openNodeMenu = (event: ReactMouseEvent, nodeId: string, nodeLabel: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({ kind: "node", x: event.clientX, y: event.clientY, nodeId, nodeLabel });
+  };
+  const updateLabelOverride = (tipName: string, patch: Partial<NonNullable<GgtreePayload["label_overrides"][string]>>) => {
+    setPayload((current) => ({
+      ...current,
+      label_overrides: {
+        ...(current.label_overrides ?? {}),
+        [tipName]: { ...(current.label_overrides?.[tipName] ?? {}), ...patch }
+      }
+    }));
+  };
+  const clearLabelOverride = (tipName: string) => {
+    setPayload((current) => {
+      const next = { ...(current.label_overrides ?? {}) };
+      delete next[tipName];
+      return { ...current, label_overrides: next };
+    });
+  };
+  const updateSupportOverride = (supportId: string, patch: Partial<NonNullable<GgtreePayload["support_overrides"][string]>>) => {
+    setPayload((current) => ({
+      ...current,
+      support_overrides: {
+        ...(current.support_overrides ?? {}),
+        [supportId]: { ...(current.support_overrides?.[supportId] ?? {}), ...patch }
+      }
+    }));
+  };
+  const clearSupportOverride = (supportId: string) => {
+    setPayload((current) => {
+      const next = { ...(current.support_overrides ?? {}) };
+      delete next[supportId];
+      return { ...current, support_overrides: next };
+    });
+  };
+  const updateNodeOverride = (nodeId: string, patch: Partial<NonNullable<GgtreePayload["node_overrides"][string]>>) => {
+    setPayload((current) => ({
+      ...current,
+      node_overrides: {
+        ...(current.node_overrides ?? {}),
+        [nodeId]: { ...(current.node_overrides?.[nodeId] ?? {}), ...patch }
+      }
+    }));
+  };
+  const clearNodeOverride = (nodeId: string) => {
+    setPayload((current) => {
+      const next = { ...(current.node_overrides ?? {}) };
+      delete next[nodeId];
+      return { ...current, node_overrides: next };
+    });
+  };
 
   return (
     <>
       <section className="report-block ggtree-design-studio">
         <div className="block-title-row">
-          <div><h3>实时树图设计</h3><span>调整控件会立即更新 SVG 预览</span></div>
+          <div><h3>ggtree 参数设计</h3><span>前端为近似预览，最终图片由 R / ggtree 生成</span></div>
           <div className="ggtree-preview-actions" aria-label="预览缩放">
-            <button type="button" onClick={() => setZoom((value) => Math.max(10, value - 10))}>−</button>
-            <span>{zoom}%</span>
-            <button type="button" onClick={() => setZoom((value) => Math.min(200, value + 10))}>＋</button>
-            <button type="button" onClick={fitCanvas}>适应窗口</button>
-            <button type="button" onClick={centerCanvas}>回到中心</button>
+            <div className="ggtree-preview-mode" role="group" aria-label="预览来源">
+              <button type="button" className={previewMode === "react" ? "active" : ""} onClick={() => setPreviewMode("react")}>React 可编辑预览</button>
+              <button
+                type="button"
+                className={previewMode === "ggtree" ? "active" : ""}
+                onClick={() => setPreviewMode("ggtree")}
+              >
+                ggtree 最终效果
+              </button>
+            </div>
           </div>
         </div>
         <div className="ggtree-live-layout">
@@ -324,70 +576,152 @@ function GgtreeDesignStudio({
               setAnnotationText={setAnnotationText}
               annotationCount={annotations.length}
             />
-            <button className="header-run-action ggtree-export-action" type="button" onClick={() => previewRef.current?.downloadSvg()}>
-              ⤓ 下载当前预览 SVG
+            <button className="header-run-action ggtree-export-action" type="button" disabled={isExporting} onClick={onExport}>
+              {isExporting ? "◌ 正在生成 ggtree 图" : result ? "↻ 重新生成 ggtree PNG/PDF" : "生成 ggtree PNG/PDF"}
             </button>
-            <button className="ggtree-r-export-action" type="button" disabled={isExporting} onClick={onExport}>
-              {isExporting ? "◌ 正在生成 R 图" : result ? "↻ 重新生成 PNG/PDF" : "生成 R/ggtree PNG/PDF"}
+            <button className="ggtree-r-export-action" type="button" onClick={() => previewRef.current?.downloadSvg()}>
+              ⤓ 下载 React 编辑版 SVG
             </button>
-            <button
-              className="ggtree-json-export-action"
-              type="button"
-              onClick={() => downloadStyleJson({
-                payload,
-                preview: {
-                  labelMode,
-                  supportMode,
-                  purposeMode,
-                  lowSupportThreshold,
-                  radialScale,
-                  fanAngle,
-                  centerGap,
-                  tipSpacing,
-                  alignTips,
-                  collapseMinTips,
-                  searchQuery
-                },
-                annotationText
-              })}
-            >
-              ⤓ EXPORT STYLE JSON
-            </button>
-            <small>“下载当前预览 SVG”会保存眼前这张图；PNG/PDF 会调用 R / ggtree 重新渲染，外观可能与实时预览略有差异。</small>
+            <details className="ggtree-export-more">
+              <summary>更多导出选项</summary>
+              <button
+                className="ggtree-json-export-action"
+                type="button"
+                onClick={() => downloadStyleJson(buildGgtreeStyleSpec(payload, treeSummary.tipCount))}
+              >
+                ⤓ 导出 Style JSON
+              </button>
+            </details>
+            <small>React SVG 保留本地标签排版；PNG/PDF 使用 ggtree 的自动定位。</small>
           </div>
-          <div className="ggtree-preview-viewport" ref={viewportRef}>
-            <div className="ggtree-canvas-stage">
+          <div className="ggtree-preview-column">
+            <div className="ggtree-viewport-toolbar" aria-label="画布视图控制">
+              <button type="button" onClick={() => setZoom((value) => Math.max(10, value - 10))} aria-label="缩小">−</button>
+              <span>{zoom}%</span>
+              <button type="button" onClick={() => setZoom((value) => Math.min(200, value + 10))} aria-label="放大">＋</button>
+              <button type="button" onClick={fitCanvas}>适应</button>
+              <button type="button" onClick={centerCanvas}>居中</button>
+              {previewMode === "react" ? (
+                <button type="button" disabled={Object.keys(previewLabelTransforms).length === 0} onClick={() => setPreviewLabelTransforms({})}>重置标签</button>
+              ) : null}
+            </div>
+            <div
+              className={`ggtree-preview-viewport ${isDraggingCanvas ? "is-dragging" : ""}`}
+              ref={viewportRef}
+              onWheel={zoomAtPointer}
+              onPointerDown={startCanvasDrag}
+              onPointerMove={moveCanvasDrag}
+              onPointerUp={endCanvasDrag}
+              onPointerCancel={endCanvasDrag}
+            >
+            {previewMode === "react" ? (
+              <div className="ggtree-local-edit-note">拖动和旋转仅影响 React SVG，不改变 ggtree 定位</div>
+            ) : null}
+            <div className={`ggtree-canvas-stage ${previewMode === "ggtree" ? "real-preview" : ""}`} onContextMenu={previewMode === "react" ? openCanvasMenu : undefined}>
+              {previewMode === "ggtree" && realPreviewFile && displayedPreviewJobId ? (
+                <div className="ggtree-real-preview-frame">
+                  {isRealPreviewLoading ? <div className="ggtree-preview-stale">正在刷新 ggtree 真实预览…</div> : null}
+                  {realPreviewError ? <div className="ggtree-preview-stale error">{realPreviewError}</div> : null}
+                  {realSvgMarkup ? (
+                    <div
+                      className="ggtree-real-svg"
+                      style={{ width: ggtreeCanvasToPreviewPixels(effectiveStyle.width) * zoom / 100 }}
+                      onContextMenu={(event) => {
+                        const target = event.target instanceof Element ? event.target.closest("text") : null;
+                        const tipName = target?.textContent?.trim() ?? "";
+                        if (!tipNames.has(tipName)) return;
+                        openTipMenu(event, tipName);
+                      }}
+                      dangerouslySetInnerHTML={{ __html: realSvgMarkup }}
+                    />
+                  ) : (
+                    <img
+                      src={fileUrl(displayedPreviewJobId, realPreviewFile)}
+                      alt="R ggtree 真实预览"
+                      style={{ width: ggtreeCanvasToPreviewPixels(effectiveStyle.width) * zoom / 100 }}
+                    />
+                  )}
+                </div>
+              ) : previewMode === "ggtree" ? (
+                <div className="ggtree-real-preview-empty">
+                  <strong>{realPreviewError ? "ggtree 真实预览生成失败" : "正在准备 ggtree 真实预览"}</strong>
+                  <span>{realPreviewError || "R 完成绘图后会在这里显示 SVG。"}</span>
+                </div>
+              ) : (
               <PhylogeneticTreePreview
                 ref={previewRef}
                 newick={payload.newick}
                 branchColor={payload.branch_color}
-                branchWidth={payload.branch_width}
+                branchWidth={ggtreeSizeToPreviewPixels(payload.branch_width)}
                 tipColor={payload.tip_label_color}
-                tipFontSize={payload.tip_font_size * 4}
+                tipFontSize={ggtreeSizeToPreviewPixels(effectiveStyle.tipFontSize)}
                 supportColor={payload.support_color}
                 supportThreshold={payload.support_threshold}
-                lowSupportThreshold={lowSupportThreshold}
+                supportFontSize={ggtreeSizeToPreviewPixels(payload.support_font_size)}
+                lowSupportThreshold={payload.support_threshold}
                 backgroundColor={payload.background_color}
                 showTipLabels={payload.show_tip_labels}
                 showSupport={payload.show_support}
+                showNodes={payload.show_nodes}
                 showBranchLength={payload.show_branch_length}
                 layoutMode={payload.layout}
                 labelMode={labelMode}
-                supportMode={supportMode}
+                supportMode={previewSupportMode(effectiveStyle.supportMode)}
                 radialScale={radialScale}
-                fanAngle={fanAngle}
+                fanAngle={payload.layout === "fan" ? 360 - payload.open_angle : fanAngle}
                 centerGap={centerGap}
                 tipSpacing={tipSpacing}
-                alignTips={alignTips}
+                tipLabelOffset={payload.tip_label_offset}
+                tipLabelAngle={payload.layout === "rectangular" ? 0 : payload.tip_label_angle}
+                xExpand={payload.x_expand}
+                rightMargin={payload.right_margin}
+                alignTips={payload.align_tip_labels}
                 searchQuery={searchQuery}
                 collapseMinTips={collapseMinTips}
                 annotations={annotations}
+                labelOverrides={previewLabelOverrides}
+                supportOverrides={payload.support_overrides}
+                nodeOverrides={payload.node_overrides}
+                textSizeScale={GGPLOT_MM_TO_CSS_PX}
+                lineWidthScale={GGPLOT_MM_TO_CSS_PX}
+                onCanvasContextMenu={openCanvasMenu}
+                onTipContextMenu={openTipMenu}
+                onTipTransform={(tipName, transform) => setPreviewLabelTransforms((current) => ({
+                  ...current,
+                  [tipName]: { ...(current[tipName] ?? {}), ...transform }
+                }))}
+                onSupportContextMenu={openSupportMenu}
+                onNodeContextMenu={openNodeMenu}
                 allowDownload
                 downloadFileName="ggtree-current-preview.svg"
                 showMeta={false}
                 displayScale={zoom / 100}
+                canvasWidth={ggtreeCanvasToPreviewPixels(effectiveStyle.width)}
+                canvasHeight={ggtreeCanvasToPreviewPixels(effectiveStyle.height)}
               />
+              )}
+              {contextMenu ? (
+                <GgtreeContextMenu
+                  menu={contextMenu}
+                  payload={payload}
+                  setPayload={setPayload}
+                  updateLabelOverride={updateLabelOverride}
+                  clearLabelOverride={clearLabelOverride}
+                  updateSupportOverride={updateSupportOverride}
+                  clearSupportOverride={clearSupportOverride}
+                  updateNodeOverride={updateNodeOverride}
+                  clearNodeOverride={clearNodeOverride}
+                  labelMode={labelMode}
+                  setLabelMode={setLabelMode}
+                  setSupportMode={setSupportMode}
+                  tipSpacing={tipSpacing}
+                  setTipSpacing={setTipSpacing}
+                  onClose={() => setContextMenu(null)}
+                />
+              ) : null}
             </div>
+            </div>
+            <FloatingTreeControls payload={payload} setPayload={setPayload} />
           </div>
         </div>
       </section>
@@ -437,8 +771,8 @@ function GgtreeStyleControls({
   setPurposeMode: React.Dispatch<React.SetStateAction<"topology" | "distance" | "large" | "paper">>;
   labelMode: "auto" | "all" | "search" | "hover";
   setLabelMode: React.Dispatch<React.SetStateAction<"auto" | "all" | "search" | "hover">>;
-  supportMode: "none" | "auto" | "all" | "hover" | "low" | "dots";
-  setSupportMode: React.Dispatch<React.SetStateAction<"none" | "auto" | "all" | "hover" | "low" | "dots">>;
+  supportMode: GgtreePayload["support_mode"];
+  setSupportMode: React.Dispatch<React.SetStateAction<GgtreePayload["support_mode"]>>;
   lowSupportThreshold: number;
   setLowSupportThreshold: React.Dispatch<React.SetStateAction<number>>;
   radialScale: number;
@@ -469,13 +803,17 @@ function GgtreeStyleControls({
         show_tip_labels: true,
         show_support: true,
         show_branch_length: false,
+        align_tip_labels: false,
         support_threshold: 50,
         tip_font_size: 3,
-        branch_width: 0.7
+        tip_label_offset: 0.02,
+        branch_width: 0.7,
+        support_mode: "low",
+        tree_theme: "clean"
       }));
       setLabelMode("auto");
       setSupportMode("low");
-      setAlignTips(true);
+      setAlignTips(false);
       setCollapseMinTips(0);
       return;
     }
@@ -484,9 +822,14 @@ function GgtreeStyleControls({
         ...current,
         show_tip_labels: true,
         show_support: true,
+        align_tip_labels: false,
         support_threshold: 70,
         tip_font_size: 2.5,
-        branch_width: 0.6
+        tip_label_offset: 0.03,
+        branch_width: 0.6,
+        support_mode: "low",
+        tree_theme: "publication",
+        auto_size: true
       }));
       setLabelMode("search");
       setSupportMode("low");
@@ -499,16 +842,20 @@ function GgtreeStyleControls({
         ...current,
         show_tip_labels: true,
         show_support: true,
+        align_tip_labels: false,
         support_threshold: 80,
         tip_font_size: 3.5,
+        tip_label_offset: 0.02,
         branch_width: 0.8,
         background_color: "#ffffff",
+        support_mode: "text",
+        tree_theme: "publication",
         dpi: 300
       }));
       setLabelMode("auto");
       setSupportMode("low");
       setLowSupportThreshold(70);
-      setAlignTips(payload.layout === "rectangular");
+      setAlignTips(false);
       return;
     }
     setPayload((current) => ({
@@ -516,12 +863,16 @@ function GgtreeStyleControls({
       show_tip_labels: true,
       show_support: true,
       show_branch_length: true,
+      align_tip_labels: false,
       support_threshold: 50,
       tip_font_size: 3,
-      branch_width: 0.7
+      tip_label_offset: 0.02,
+      branch_width: 0.7,
+      support_mode: "text",
+      tree_theme: "axis"
     }));
     setLabelMode("auto");
-    setSupportMode("dots");
+    setSupportMode("text");
     setCollapseMinTips(0);
   };
 
@@ -538,41 +889,11 @@ function GgtreeStyleControls({
           <span>搜索</span>
           <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="tip / clade name" />
         </label>
-        <CompactSegmentedRow
-          label="布局"
-          value={payload.layout}
-          options={[["rectangular", "矩形"], ["circular", "圆形"], ["fan", "扇形"]]}
-          onChange={(value) => update("layout", value)}
-        />
-        <CompactSegmentedRow
-          label="枝长"
-          value={payload.show_branch_length ? "real" : "uniform"}
-          options={[["real", "真实"], ["uniform", "统一"]]}
-          onChange={(value) => update("show_branch_length", value === "real")}
-        />
-        <CompactSegmentedRow
-          label="标签"
-          value={labelMode}
-          options={[["all", "全部"], ["auto", "自动"], ["search", "搜索"], ["hover", "悬停"]]}
-          onChange={setLabelMode}
-          after={<CompactToggle checked={payload.show_tip_labels} label="显示" onChange={(checked) => update("show_tip_labels", checked)} />}
-        />
-        <CompactRangeRow label="字号" value={payload.tip_font_size} min={1} max={12} step={0.5} display={`${payload.tip_font_size}`} onChange={(value) => update("tip_font_size", value)} />
-        <CompactSegmentedRow
-          label="支持度"
-          value={supportMode}
-          options={[["none", "隐藏"], ["low", "低值"], ["dots", "圆点"], ["all", "全部"]]}
-          onChange={setSupportMode}
-          after={<CompactToggle checked={payload.show_support} label="显示" onChange={(checked) => update("show_support", checked)} />}
-        />
-        <CompactRangeRow label="阈值" value={payload.support_threshold} min={0} max={100} step={1} display={`${payload.support_threshold}`} onChange={(value) => update("support_threshold", value)} />
-        <CompactRangeRow label="低值线" value={lowSupportThreshold} min={0} max={100} step={1} display={`${lowSupportThreshold}`} onChange={setLowSupportThreshold} />
-        <CompactRangeRow label="Tip距" value={tipSpacing} min={0.7} max={2.4} step={0.05} display={`${Math.round(tipSpacing * 100)}%`} onChange={setTipSpacing} />
         {payload.layout !== "rectangular" ? (
           <>
             <CompactRangeRow label="半径" value={radialScale} min={0.5} max={1.4} step={0.05} display={`${Math.round(radialScale * 100)}%`} onChange={setRadialScale} />
             <CompactRangeRow label="留白" value={centerGap} min={0} max={0.3} step={0.01} display={`${Math.round(centerGap * 100)}%`} onChange={setCenterGap} />
-            {payload.layout === "fan" ? <CompactRangeRow label="扇角" value={fanAngle} min={120} max={360} step={5} display={`${fanAngle}°`} onChange={setFanAngle} /> : null}
+            {payload.layout === "fan" ? <CompactRangeRow label="开口角" value={payload.open_angle} min={0} max={330} step={5} display={`${payload.open_angle}°`} onChange={(value) => update("open_angle", value)} /> : null}
           </>
         ) : null}
         <CompactRangeRow label="折叠" value={collapseMinTips} min={0} max={300} step={10} display={collapseMinTips ? `≥${collapseMinTips}` : "关"} onChange={setCollapseMinTips} />
@@ -580,8 +901,6 @@ function GgtreeStyleControls({
           <span className="ggtree-compact-label">颜色</span>
           <div className="ggtree-color-chip-row">
             <ColorChip label="分支" value={payload.branch_color} onChange={(value) => update("branch_color", value)} />
-            <ColorChip label="标签" value={payload.tip_label_color} onChange={(value) => update("tip_label_color", value)} />
-            <ColorChip label="支持" value={payload.support_color} onChange={(value) => update("support_color", value)} />
             <ColorChip label="背景" value={payload.background_color} onChange={(value) => update("background_color", value)} />
           </div>
         </div>
@@ -590,7 +909,11 @@ function GgtreeStyleControls({
         <summary>高级外观</summary>
         <div className="ggtree-details-body">
           <CompactRangeRow label="分支粗细" value={payload.branch_width} min={0.1} max={4} step={0.1} display={`${payload.branch_width}`} onChange={(value) => update("branch_width", value)} />
-          <label className="toggle-field"><input type="checkbox" checked={alignTips} onChange={(event) => setAlignTips(event.target.checked)} />Rectangular 标签右对齐</label>
+          <CompactRangeRow label="Tip距" value={tipSpacing} min={0.7} max={2.4} step={0.05} display={`${Math.round(tipSpacing * 100)}%`} onChange={setTipSpacing} />
+          <CompactRangeRow label="X扩展" value={payload.x_expand} min={0} max={1} step={0.01} display={`${payload.x_expand}`} onChange={(value) => update("x_expand", value)} />
+          <CompactRangeRow label="右边距" value={payload.right_margin} min={0} max={80} step={1} display={`${payload.right_margin}`} onChange={(value) => update("right_margin", value)} />
+          <label className="toggle-field"><input type="checkbox" checked={payload.align_tip_labels} onChange={(event) => { setAlignTips(event.target.checked); update("align_tip_labels", event.target.checked); }} />Rectangular 标签右对齐（关闭则接枝末端）</label>
+          <label className="toggle-field"><input type="checkbox" checked={payload.auto_size} onChange={(event) => update("auto_size", event.target.checked)} />按 tip 数自动调整导出尺寸</label>
         </div>
       </details>
       <details className="ggtree-compact-details">
@@ -615,6 +938,181 @@ function GgtreeStyleControls({
           <label className="field"><span>DPI</span><select value={payload.dpi} onChange={(event) => update("dpi", Number(event.target.value))}><option value={150}>150</option><option value={300}>300</option><option value={600}>600</option></select></label>
         </div>
       </details>
+    </div>
+  );
+}
+
+function GgtreeContextMenu({
+  menu,
+  payload,
+  setPayload,
+  updateLabelOverride,
+  clearLabelOverride,
+  updateSupportOverride,
+  clearSupportOverride,
+  updateNodeOverride,
+  clearNodeOverride,
+  labelMode,
+  setLabelMode,
+  setSupportMode,
+  tipSpacing,
+  setTipSpacing,
+  onClose
+}: {
+  menu: TreeContextMenu;
+  payload: GgtreePayload;
+  setPayload: React.Dispatch<React.SetStateAction<GgtreePayload>>;
+  updateLabelOverride: (tipName: string, patch: Partial<NonNullable<GgtreePayload["label_overrides"][string]>>) => void;
+  clearLabelOverride: (tipName: string) => void;
+  updateSupportOverride: (supportId: string, patch: Partial<NonNullable<GgtreePayload["support_overrides"][string]>>) => void;
+  clearSupportOverride: (supportId: string) => void;
+  updateNodeOverride: (nodeId: string, patch: Partial<NonNullable<GgtreePayload["node_overrides"][string]>>) => void;
+  clearNodeOverride: (nodeId: string) => void;
+  labelMode: "auto" | "all" | "search" | "hover";
+  setLabelMode: React.Dispatch<React.SetStateAction<"auto" | "all" | "search" | "hover">>;
+  setSupportMode: React.Dispatch<React.SetStateAction<GgtreePayload["support_mode"]>>;
+  tipSpacing: number;
+  setTipSpacing: React.Dispatch<React.SetStateAction<number>>;
+  onClose: () => void;
+}) {
+  const update = <K extends keyof GgtreePayload>(key: K, value: GgtreePayload[K]) => setPayload((current) => ({ ...current, [key]: value }));
+  const style = {
+    left: Math.max(12, Math.min(menu.x, window.innerWidth - 292)),
+    top: Math.max(12, Math.min(menu.y, window.innerHeight - 420))
+  };
+
+  return (
+    <div className="ggtree-context-menu" style={style} onClick={(event) => event.stopPropagation()} onContextMenu={(event) => event.preventDefault()}>
+      {menu.kind === "canvas" ? (
+        <>
+          <strong>图层显示</strong>
+          <label><input type="checkbox" checked={payload.show_tip_labels} onChange={(event) => update("show_tip_labels", event.target.checked)} />显示 tip 标签</label>
+          <label><input type="checkbox" checked={payload.show_support} onChange={(event) => update("show_support", event.target.checked)} />显示支持度</label>
+          <label><input type="checkbox" checked={payload.show_nodes} onChange={(event) => update("show_nodes", event.target.checked)} />显示节点点位</label>
+          <div className="ggtree-context-grid">
+            <span>标签</span>
+            <select value={labelMode} onChange={(event) => setLabelMode(event.target.value as "auto" | "all" | "search" | "hover")}>
+              <option value="auto">自动</option>
+              <option value="all">全部</option>
+              <option value="search">搜索</option>
+              <option value="hover">悬停</option>
+            </select>
+            <span>标签距</span>
+            <input type="number" min={0} max={1} step={0.01} value={payload.tip_label_offset} onChange={(event) => update("tip_label_offset", Number(event.target.value))} />
+            <span>标签角</span>
+            <input type="number" min={-180} max={180} step={5} value={payload.tip_label_angle} onChange={(event) => update("tip_label_angle", Number(event.target.value))} />
+            <span>Tip 间距</span>
+            <input type="number" min={0.7} max={2.4} step={0.05} value={tipSpacing} onChange={(event) => setTipSpacing(Number(event.target.value))} />
+            <span>支持度</span>
+            <select
+              value={payload.support_mode}
+              onChange={(event) => {
+                const value = event.target.value as GgtreePayload["support_mode"];
+                setSupportMode(value);
+                update("support_mode", value);
+                update("show_support", value !== "none");
+              }}
+            >
+              <option value="text">数字</option>
+              <option value="dots">圆点</option>
+              <option value="low">低值</option>
+              <option value="none">隐藏</option>
+            </select>
+            <span>阈值</span>
+            <input type="number" min={0} max={100} value={payload.support_threshold} onChange={(event) => update("support_threshold", Number(event.target.value))} />
+            <span>标签字号</span>
+            <input type="number" min={1} max={12} step={0.5} value={payload.tip_font_size} onChange={(event) => update("tip_font_size", Number(event.target.value))} />
+            <span>支持字号</span>
+            <input type="number" min={1} max={8} step={0.2} value={payload.support_font_size} onChange={(event) => update("support_font_size", Number(event.target.value))} />
+          </div>
+        </>
+      ) : null}
+
+      {menu.kind === "tip" ? (
+        <>
+          <strong>{menu.tipName}</strong>
+          <button type="button" onClick={() => { updateLabelOverride(menu.tipName, { visible: true }); onClose(); }}>固定显示</button>
+          <button type="button" onClick={() => { updateLabelOverride(menu.tipName, { visible: false }); onClose(); }}>隐藏此标签</button>
+          <button type="button" onClick={() => { clearLabelOverride(menu.tipName); onClose(); }}>恢复默认</button>
+          <div className="ggtree-context-grid">
+            <span>颜色</span>
+            <input type="color" value={payload.label_overrides?.[menu.tipName]?.color ?? payload.tip_label_color} onChange={(event) => updateLabelOverride(menu.tipName, { color: event.target.value })} />
+            <span>字号</span>
+            <input type="number" min={1} max={12} step={0.5} value={payload.label_overrides?.[menu.tipName]?.font_size ?? payload.tip_font_size} onChange={(event) => updateLabelOverride(menu.tipName, { font_size: Number(event.target.value) })} />
+            <span>角度</span>
+            <input type="number" min={-180} max={180} step={5} value={payload.label_overrides?.[menu.tipName]?.angle ?? payload.tip_label_angle} onChange={(event) => updateLabelOverride(menu.tipName, { angle: Number(event.target.value) })} />
+          </div>
+        </>
+      ) : null}
+
+      {menu.kind === "support" ? (
+        <>
+          <strong>支持度 {menu.supportLabel}</strong>
+          <button type="button" onClick={() => { updateSupportOverride(menu.supportId, { visible: true }); onClose(); }}>固定显示</button>
+          <button type="button" onClick={() => { updateSupportOverride(menu.supportId, { visible: false }); onClose(); }}>隐藏此支持度</button>
+          <button type="button" onClick={() => { clearSupportOverride(menu.supportId); onClose(); }}>恢复默认</button>
+          <div className="ggtree-context-grid">
+            <span>显示</span>
+            <select value={payload.support_overrides?.[menu.supportId]?.mode ?? "text"} onChange={(event) => updateSupportOverride(menu.supportId, { mode: event.target.value as "text" | "dots" })}>
+              <option value="text">数字</option>
+              <option value="dots">圆点</option>
+            </select>
+            <span>颜色</span>
+            <input type="color" value={payload.support_overrides?.[menu.supportId]?.color ?? payload.support_color} onChange={(event) => updateSupportOverride(menu.supportId, { color: event.target.value })} />
+            <span>字号</span>
+            <input type="number" min={1} max={8} step={0.2} value={payload.support_overrides?.[menu.supportId]?.font_size ?? payload.support_font_size} onChange={(event) => updateSupportOverride(menu.supportId, { font_size: Number(event.target.value) })} />
+          </div>
+        </>
+      ) : null}
+
+      {menu.kind === "node" ? (
+        <>
+          <strong>{menu.nodeLabel}</strong>
+          <button type="button" onClick={() => updateNodeOverride(menu.nodeId, { branch_highlight: true })}>高亮这支 clade</button>
+          <button type="button" onClick={() => updateNodeOverride(menu.nodeId, { branch_highlight: false })}>取消高亮</button>
+          <button type="button" onClick={() => updateNodeOverride(menu.nodeId, { collapsed: true })}>折叠 clade</button>
+          <button type="button" onClick={() => updateNodeOverride(menu.nodeId, { collapsed: false })}>展开 clade</button>
+          <button type="button" onClick={() => { clearNodeOverride(menu.nodeId); onClose(); }}>恢复默认</button>
+          <div className="ggtree-context-grid">
+            <span>分支色</span>
+            <input type="color" value={payload.node_overrides?.[menu.nodeId]?.branch_color ?? "#d87a33"} onChange={(event) => updateNodeOverride(menu.nodeId, { branch_color: event.target.value, branch_highlight: true })} />
+            <span>分支粗细</span>
+            <input type="number" min={0.5} max={8} step={0.2} value={payload.node_overrides?.[menu.nodeId]?.branch_width ?? Math.max(payload.branch_width + 1.5, 3)} onChange={(event) => updateNodeOverride(menu.nodeId, { branch_width: Number(event.target.value), branch_highlight: true })} />
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function FloatingTreeControls({
+  payload,
+  setPayload
+}: {
+  payload: GgtreePayload;
+  setPayload: React.Dispatch<React.SetStateAction<GgtreePayload>>;
+}) {
+  const update = <K extends keyof GgtreePayload>(key: K, value: GgtreePayload[K]) => setPayload((current) => ({ ...current, [key]: value }));
+
+  return (
+    <div className="ggtree-floating-controls" aria-label="树图快捷控制" onContextMenu={(event) => event.stopPropagation()}>
+      <div className="ggtree-floating-group" role="group" aria-label="布局">
+        <span className="ggtree-floating-label">布局</span>
+        {([[
+          "rectangular", "矩形"
+        ], [
+          "circular", "圆形"
+        ], [
+          "fan", "扇形"
+        ]] as Array<[GgtreePayload["layout"], string]>).map(([value, label]) => (
+          <button key={value} type="button" className={payload.layout === value ? "active" : ""} onClick={() => update("layout", value)}>{label}</button>
+        ))}
+      </div>
+      <div className="ggtree-floating-group" role="group" aria-label="枝长">
+        <span className="ggtree-floating-label">枝长</span>
+        <button type="button" className={payload.show_branch_length ? "active" : ""} onClick={() => update("show_branch_length", true)}>真实枝长</button>
+        <button type="button" className={!payload.show_branch_length ? "active" : ""} onClick={() => update("show_branch_length", false)}>统一枝长</button>
+      </div>
     </div>
   );
 }
@@ -706,6 +1204,27 @@ function normalizeNewick(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function extractNewickTipNames(value: string): string[] {
+  const names: string[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] !== "(" && value[index] !== ",") continue;
+    let cursor = index + 1;
+    while (/\s/.test(value[cursor] ?? "")) cursor += 1;
+    if (value[cursor] === "(") continue;
+    let label = "";
+    const quote = value[cursor] === "'" || value[cursor] === "\"" ? value[cursor] : "";
+    if (quote) {
+      cursor += 1;
+      while (cursor < value.length && value[cursor] !== quote) label += value[cursor++];
+    } else {
+      while (cursor < value.length && ![":", ",", ")", ";"].includes(value[cursor])) label += value[cursor++];
+    }
+    const normalized = label.trim();
+    if (normalized) names.push(normalized);
+  }
+  return names;
+}
+
 function normalizePayload(value: Partial<GgtreePayload>): GgtreePayload {
   return {
     newick: normalizeNewick(value.newick) || EXAMPLE_NEWICK,
@@ -786,6 +1305,11 @@ function layoutLabel(layout: GgtreePayload["layout"]): string {
   if (layout === "circular") return "圆形树";
   if (layout === "fan") return "扇形树";
   return "矩形树";
+}
+
+function previewSupportMode(mode: GgtreePayload["support_mode"]): "none" | "all" | "low" | "dots" {
+  if (mode === "text") return "all";
+  return mode;
 }
 
 function formatJobError(error: JobRecord<GgtreeResult>["error"]): string {

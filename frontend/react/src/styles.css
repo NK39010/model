@@ -14,6 +14,14 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
 }
@@ -101,6 +109,9 @@ button {
 }
 
 .app-shell {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
   min-height: 100vh;
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
@@ -299,12 +310,15 @@ button {
 
 .workspace-panel {
   min-width: 0;
+  max-width: 100%;
   min-height: 100vh;
-  overflow: visible;
+  overflow-x: clip;
   background: #f4f6f2;
 }
 
 .workspace-page {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   min-height: 100%;
   height: auto;
@@ -333,7 +347,10 @@ button {
 }
 
 .tool-view {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  overflow-x: clip;
 }
 
 .tool-view[hidden] {
@@ -413,6 +430,7 @@ button {
 }
 
 .workspace {
+  max-width: 100%;
   min-width: 0;
   min-height: 0;
   padding: 28px;
@@ -1301,11 +1319,13 @@ button {
   stroke-width: 2;
   stroke-linecap: square;
   fill: none;
+  cursor: context-menu;
 }
 
 .tree-node {
   stroke: #fbfcfa;
   stroke-width: 1.5;
+  cursor: context-menu;
 }
 
 .tree-node.internal {
@@ -1316,18 +1336,57 @@ button {
   fill: #1d3528;
 }
 
+.tree-node.highlighted {
+  fill: #d87a33;
+  stroke: #fff7ed;
+  stroke-width: 2.5;
+}
+
+.tree-node-group:hover .tree-node.internal,
+.tree-support-target:hover .tree-support-dot {
+  filter: drop-shadow(0 0 3px rgba(216, 122, 51, 0.55));
+}
+
 .tree-tip-label {
   fill: #17211c;
-  font-family: var(--font-heading);
+  font-family: "Times New Roman", Times, serif;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 400;
+}
+
+.tree-tip-group.is-editable {
+  cursor: move;
+  touch-action: none;
+  outline: none;
+}
+
+.tree-tip-selection rect {
+  fill: rgba(255, 255, 255, 0.08);
+  stroke: #1473e6 !important;
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.tree-tip-selection line {
+  stroke: #1473e6 !important;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.tree-tip-rotate-handle {
+  fill: #ffffff;
+  stroke: #1473e6 !important;
+  stroke-width: 2;
+  cursor: crosshair;
+  vector-effect: non-scaling-stroke;
 }
 
 .tree-support-label {
   fill: #9a5a35;
-  font-family: var(--font-mono);
+  font-family: "Times New Roman", Times, serif;
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 400;
 }
 
 .tree-tip-label.collision-hidden {
@@ -1390,8 +1449,9 @@ button {
 
 .tree-annotation-text {
   fill: #43574d;
-  font-family: var(--font-mono);
+  font-family: "Times New Roman", Times, serif;
   font-size: 10px;
+  font-weight: 400;
 }
 
 .tree-annotation-bar {
@@ -1424,21 +1484,39 @@ button {
   overflow: hidden;
 }
 
+.ggtree-design-studio > .block-title-row {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.ggtree-design-studio > .block-title-row > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .ggtree-live-layout {
   display: grid;
   grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
   gap: 14px;
   min-width: 0;
   max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .ggtree-live-controls {
+  position: sticky;
+  top: 12px;
+  align-self: start;
   max-height: 620px;
   padding: 12px;
   border: 1px solid #e4ebe5;
   border-radius: 8px;
   background: #fbfcfa;
   overflow: auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .ggtree-live-controls .ggtree-control-grid {
@@ -1759,6 +1837,30 @@ button {
   font-weight: 900;
 }
 
+.ggtree-export-more {
+  margin-top: 8px;
+  border: 1px solid #d9e4dc;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.ggtree-export-more summary {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: #52675b;
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.ggtree-export-more .ggtree-json-export-action {
+  width: calc(100% - 16px);
+  margin: 0 8px 8px;
+}
+
 .ggtree-live-controls > small {
   display: block;
   margin-top: 8px;
@@ -1767,6 +1869,9 @@ button {
 }
 
 .ggtree-preview-viewport {
+  position: relative;
+  width: 100%;
+  min-width: 0;
   margin-top: 12px;
   max-width: 100%;
   max-height: 520px;
@@ -1774,6 +1879,152 @@ button {
   border-radius: 8px;
   background: #ffffff;
   overflow: auto;
+  cursor: grab;
+  touch-action: pan-x pan-y;
+  box-sizing: border-box;
+}
+
+.ggtree-preview-viewport.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.ggtree-preview-column {
+  min-width: 0;
+  max-width: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  align-self: start;
+}
+
+.ggtree-viewport-toolbar {
+  position: relative;
+  z-index: 45;
+  width: fit-content;
+  max-width: calc(100% - 20px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0 auto 8px;
+  padding: 5px;
+  border: 1px solid rgba(198, 215, 204, 0.92);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8px 22px rgba(20, 36, 28, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.ggtree-viewport-toolbar button {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid #dce4db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #304039;
+  font: 800 11px var(--font-heading);
+  cursor: pointer;
+}
+
+.ggtree-viewport-toolbar button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ggtree-viewport-toolbar span {
+  min-width: 42px;
+  color: #52675b;
+  font: 700 11px var(--font-mono);
+  text-align: center;
+}
+
+.ggtree-local-edit-note {
+  position: relative;
+  z-index: 1;
+  width: fit-content;
+  max-width: min(420px, calc(100% - 20px));
+  margin: 7px auto 0;
+  padding: 6px 9px;
+  border: 1px solid #c9ddeb;
+  border-radius: 7px;
+  background: rgba(239, 248, 255, 0.95);
+  color: #315f7d;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.ggtree-floating-controls {
+  position: relative;
+  z-index: 40;
+  width: fit-content;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+  max-width: min(680px, calc(100% - 20px));
+  margin: 8px auto 0;
+  padding: 7px;
+  border: 1px solid rgba(198, 215, 204, 0.92);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 28px rgba(20, 36, 28, 0.14);
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 760px) {
+  .ggtree-floating-controls {
+    justify-content: center;
+  }
+
+  .ggtree-floating-group {
+    grid-auto-columns: minmax(46px, max-content);
+  }
+
+  .ggtree-floating-controls button {
+    padding-inline: 7px;
+    font-size: 11px;
+  }
+}
+
+.ggtree-floating-group {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(54px, max-content);
+  gap: 4px;
+}
+
+.ggtree-floating-label {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  color: #5c6f64;
+  font: 900 11px var(--font-heading);
+  white-space: nowrap;
+}
+
+.ggtree-floating-controls button {
+  min-height: 30px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: #f2f7f2;
+  color: #405148;
+  padding: 5px 9px;
+  font: 800 12px var(--font-heading);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ggtree-floating-controls button:hover {
+  border-color: #bad0c1;
+  background: #eaf3ec;
+}
+
+.ggtree-floating-controls button.active {
+  border-color: #4f8061;
+  background: #315b43;
+  color: #ffffff;
 }
 
 .ggtree-live-layout .ggtree-preview-viewport {
@@ -1807,6 +2058,77 @@ button {
   max-width: none;
 }
 
+.ggtree-context-menu {
+  position: fixed;
+  z-index: 80;
+  width: min(260px, calc(100vw - 24px));
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #cbd9cf;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 42px rgba(20, 36, 28, 0.22);
+  color: #24352d;
+  font-family: var(--font-heading);
+  font-size: 12px;
+}
+
+.ggtree-context-menu strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #17211c;
+  font-size: 13px;
+}
+
+.ggtree-context-menu label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 800;
+}
+
+.ggtree-context-menu button,
+.ggtree-context-menu select,
+.ggtree-context-menu input[type="number"] {
+  min-height: 30px;
+  border: 1px solid #d9e4dc;
+  border-radius: 7px;
+  background: #f8fbf8;
+  color: #304039;
+  padding: 5px 8px;
+  font: inherit;
+  font-weight: 800;
+}
+
+.ggtree-context-menu button {
+  text-align: left;
+  cursor: pointer;
+}
+
+.ggtree-context-menu input[type="color"] {
+  width: 100%;
+  min-height: 30px;
+  padding: 2px;
+  border: 1px solid #d9e4dc;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.ggtree-context-grid {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+.ggtree-context-grid span {
+  color: #5c6f64;
+  font-weight: 900;
+}
+
 .ggtree-preview-viewport img {
   display: block;
   max-width: none;
@@ -1815,6 +2137,8 @@ button {
 }
 
 .ggtree-preview-actions {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1837,6 +2161,123 @@ button {
   text-align: center;
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+.ggtree-preview-mode {
+  min-width: 0;
+  max-width: 100%;
+  display: grid;
+  grid-auto-flow: column;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #d7e2da;
+  border-radius: 7px;
+  background: #f3f7f4;
+}
+
+.ggtree-preview-mode button {
+  min-width: 0;
+  padding-inline: 10px;
+  border-color: transparent;
+  background: transparent;
+  font: 800 12px var(--font-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ggtree-preview-mode button.active {
+  border-color: #4f8061;
+  background: #315b43;
+  color: #ffffff;
+}
+
+.ggtree-canvas-stage.real-preview {
+  width: max-content;
+  min-width: 100%;
+  align-content: center;
+}
+
+.ggtree-real-preview-frame {
+  position: relative;
+  width: max-content;
+  max-width: none;
+}
+
+.ggtree-real-preview-frame img {
+  display: block;
+  max-width: none;
+  background: #ffffff;
+}
+
+.ggtree-real-svg {
+  max-width: none;
+}
+
+.ggtree-real-svg svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+
+.ggtree-real-svg text {
+  cursor: context-menu;
+}
+
+@media (max-width: 980px) {
+  .ggtree-live-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ggtree-live-controls {
+    position: static;
+    max-height: none;
+    order: 2;
+  }
+
+  .ggtree-preview-viewport {
+    order: 1;
+  }
+
+  .ggtree-preview-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+.ggtree-preview-stale {
+  position: sticky;
+  top: 12px;
+  z-index: 2;
+  width: max-content;
+  max-width: calc(100vw - 80px);
+  margin: 0 auto -38px;
+  padding: 7px 10px;
+  border: 1px solid #d7a96f;
+  border-radius: 7px;
+  background: #fff8eb;
+  color: #80501f;
+  font: 800 12px var(--font-heading);
+}
+
+.ggtree-preview-stale.error {
+  border-color: #d28c86;
+  background: #fff2f1;
+  color: #8b302a;
+}
+
+.ggtree-real-preview-empty {
+  display: grid;
+  gap: 5px;
+  place-items: center;
+  min-width: min(520px, calc(100vw - 80px));
+  color: #5d6e64;
+  font-family: var(--font-heading);
+}
+
+.ggtree-real-preview-empty strong {
+  color: #263a2f;
 }
 
 .color-field input[type="color"] {
@@ -2702,6 +3143,51 @@ th {
 }
 
 @media (max-width: 1120px) {
+  .four-level-shell,
+  .four-level-shell.category-panel-collapsed,
+  .four-level-shell.tool-panel-collapsed {
+    --brand-panel-width: 60px;
+    --tool-panel-width: 92px;
+    grid-template-columns:
+      var(--brand-panel-width)
+      var(--tool-panel-width)
+      minmax(0, 1fr);
+  }
+
+  .four-level-shell .category-panel {
+    display: none;
+  }
+
+  .four-level-shell .tool-panel {
+    padding: 16px 8px;
+  }
+
+  .four-level-shell .tool-panel .level-panel-header div,
+  .four-level-shell .tool-panel .level-nav small {
+    display: none;
+  }
+
+  .four-level-shell .tool-panel .level-panel-header {
+    min-height: 32px;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+
+  .four-level-shell .tool-panel .level-nav button {
+    min-width: 0;
+    padding: 9px 5px;
+    justify-items: center;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .four-level-shell .tool-panel .level-nav span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .app-shell:not(.four-level-shell),
   .tool-layout,
   .msa-layout,
@@ -2715,9 +3201,24 @@ th {
 }
 
 @media (max-width: 720px) {
+  .four-level-shell,
+  .four-level-shell.category-panel-collapsed,
+  .four-level-shell.tool-panel-collapsed {
+    --brand-panel-width: 48px;
+    --tool-panel-width: 72px;
+  }
+
+  .four-level-shell .brand-panel {
+    padding-inline: 8px;
+  }
+
+  .four-level-shell .brand-panel h1 {
+    font-size: 20px;
+  }
+
   .workspace,
   .sidebar {
-    padding: 18px;
+    padding: 14px;
   }
 
   .control-grid,

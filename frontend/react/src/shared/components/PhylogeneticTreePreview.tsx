@@ -1,4 +1,5 @@
-import { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent, PointerEvent as ReactPointerEvent } from "react";
 
 export interface PhylogeneticTreePreviewProps {
   newick: string;
@@ -8,9 +9,11 @@ export interface PhylogeneticTreePreviewProps {
   tipFontSize?: number;
   supportColor?: string;
   supportThreshold?: number;
+  supportFontSize?: number;
   backgroundColor?: string;
   showTipLabels?: boolean;
   showSupport?: boolean;
+  showNodes?: boolean;
   showBranchLength?: boolean;
   layoutMode?: "rectangular" | "circular" | "fan";
   labelMode?: "auto" | "all" | "search" | "hover";
@@ -20,14 +23,54 @@ export interface PhylogeneticTreePreviewProps {
   fanAngle?: number;
   centerGap?: number;
   tipSpacing?: number;
+  tipLabelOffset?: number;
+  tipLabelAngle?: number;
+  xExpand?: number;
+  rightMargin?: number;
   alignTips?: boolean;
   searchQuery?: string;
   collapseMinTips?: number;
   annotations?: TreeAnnotation[];
+  labelOverrides?: Record<string, TreeLabelOverride>;
+  supportOverrides?: Record<string, TreeSupportOverride>;
+  nodeOverrides?: Record<string, TreeNodeOverride>;
+  textSizeScale?: number;
+  lineWidthScale?: number;
+  onCanvasContextMenu?: (event: MouseEvent<SVGSVGElement>) => void;
+  onTipContextMenu?: (event: MouseEvent<SVGGElement>, leafName: string) => void;
+  onTipTransform?: (leafName: string, transform: Partial<Pick<TreeLabelOverride, "translate_x" | "translate_y" | "angle">>) => void;
+  onSupportContextMenu?: (event: MouseEvent<SVGGElement>, supportId: string, supportLabel: string) => void;
+  onNodeContextMenu?: (event: MouseEvent<SVGElement>, nodeId: string, nodeLabel: string) => void;
   allowDownload?: boolean;
   downloadFileName?: string;
   showMeta?: boolean;
   displayScale?: number;
+  canvasWidth?: number;
+  canvasHeight?: number;
+}
+
+export interface TreeLabelOverride {
+  visible?: boolean;
+  color?: string;
+  font_size?: number;
+  offset?: number;
+  angle?: number;
+  translate_x?: number;
+  translate_y?: number;
+}
+
+export interface TreeSupportOverride {
+  visible?: boolean;
+  color?: string;
+  font_size?: number;
+  mode?: "text" | "dots";
+}
+
+export interface TreeNodeOverride {
+  branch_highlight?: boolean;
+  branch_color?: string;
+  branch_width?: number;
+  collapsed?: boolean;
 }
 
 export interface PhylogeneticTreePreviewHandle {
@@ -74,6 +117,8 @@ interface TreeLayout {
   usesBranchLength: boolean;
   labelX: number;
   annotationX: number;
+  treeUnitsToPixels: number;
+  fixedCanvas: boolean;
 }
 
 const LEFT_PAD = 28;
@@ -90,9 +135,11 @@ export const PhylogeneticTreePreview = forwardRef<PhylogeneticTreePreviewHandle,
   tipFontSize = 12,
   supportColor = "#9a5a35",
   supportThreshold = 0,
+  supportFontSize = 10,
   backgroundColor = "#ffffff",
   showTipLabels = true,
   showSupport = true,
+  showNodes = true,
   showBranchLength = true,
   layoutMode = "rectangular",
   labelMode = "auto",
@@ -102,29 +149,74 @@ export const PhylogeneticTreePreview = forwardRef<PhylogeneticTreePreviewHandle,
   fanAngle = 300,
   centerGap = 0.06,
   tipSpacing = 1,
+  tipLabelOffset = 0,
+  tipLabelAngle = 0,
+  xExpand = 0,
+  rightMargin = 0,
   alignTips = false,
   searchQuery = "",
   collapseMinTips = 0,
   annotations = [],
+  labelOverrides = {},
+  supportOverrides = {},
+  nodeOverrides = {},
+  textSizeScale = 1,
+  lineWidthScale = 1,
+  onCanvasContextMenu,
+  onTipContextMenu,
+  onTipTransform,
+  onSupportContextMenu,
+  onNodeContextMenu,
   allowDownload = true,
   downloadFileName = "phylogenetic-tree.svg",
   showMeta = true,
-  displayScale
+  displayScale,
+  canvasWidth,
+  canvasHeight
 }, ref) {
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const [selectedTip, setSelectedTip] = useState<string | null>(null);
+  const tipTextRefs = useRef(new Map<string, SVGTextElement>());
+  const [selectionBox, setSelectionBox] = useState<{ tipName: string; x: number; y: number; width: number; height: number } | null>(null);
+  const tipDragRef = useRef<{
+    pointerId: number;
+    leafName: string;
+    mode: "move" | "rotate";
+    startPoint: { x: number; y: number };
+    startTranslate: { x: number; y: number };
+    startAngle: number;
+    startPointerAngle: number;
+    rotationCenter: { x: number; y: number };
+  } | null>(null);
   useImperativeHandle(ref, () => ({
     downloadSvg: () => {
       if (svgRef.current) downloadSvgElement(svgRef.current, downloadFileName);
     }
   }), [downloadFileName]);
 
+  useLayoutEffect(() => {
+    if (!selectedTip) {
+      setSelectionBox(null);
+      return;
+    }
+    const text = tipTextRefs.current.get(selectedTip);
+    if (!text) return;
+    const box = text.getBBox();
+    setSelectionBox((current) => {
+      const next = { tipName: selectedTip, x: box.x, y: box.y, width: box.width, height: box.height };
+      return current && current.tipName === next.tipName && current.x === next.x && current.y === next.y && current.width === next.width && current.height === next.height
+        ? current
+        : next;
+    });
+  }, [labelOverrides, selectedTip, textSizeScale, tipFontSize]);
+
   const preview = useMemo(() => {
     const parsed = safeParseNewick(newick);
-    const root = parsed ? collapseTree(parsed, collapseMinTips) : null;
+    const root = parsed ? applyTreeOverrides(collapseTree(parsed, collapseMinTips), nodeOverrides) : null;
     if (!root) return null;
-    const built = safeBuildLayout(root, showBranchLength, tipSpacing, annotations.length > 0);
+    const built = safeBuildLayout(root, showBranchLength, tipSpacing, annotations.length > 0, xExpand, rightMargin, canvasWidth, canvasHeight);
     return built ? { root, layout: transformLayout(built, layoutMode, radialScale, fanAngle, centerGap) } : null;
-  }, [annotations.length, centerGap, collapseMinTips, fanAngle, layoutMode, newick, radialScale, showBranchLength, tipSpacing]);
+  }, [annotations.length, canvasHeight, canvasWidth, centerGap, collapseMinTips, fanAngle, layoutMode, newick, nodeOverrides, radialScale, showBranchLength, tipSpacing, xExpand, rightMargin]);
 
   if (!preview) {
     return <p className="quiet-text">无法解析 Newick 树文件。</p>;
@@ -142,13 +234,33 @@ export const PhylogeneticTreePreview = forwardRef<PhylogeneticTreePreviewHandle,
   const search = searchQuery.trim().toLowerCase();
   const matchedLeaves = search ? new Set(layout.leaves.filter((leaf) => leaf.name.toLowerCase().includes(search))) : new Set<TreeNode>();
   const matchedPathNodes = search ? collectMatchedPathNodes(root, matchedLeaves) : new Set<TreeNode>();
-  const radialPaths = layoutMode === "rectangular" ? [] : collectRadialPaths(root, layout.width / 2);
+  const radialPaths = layoutMode === "rectangular" ? [] : collectRadialPaths(root, layout.width / 2, layout.height / 2);
   const annotationsByName = new Map(annotations.map((annotation) => [annotation.name, annotation]));
   const hasAnnotations = layoutMode === "rectangular" && annotations.length > 0;
   const maxProteinLength = Math.max(1, ...annotations.map((annotation) => annotation.proteinLength ?? 0));
   const maxTemperature = Math.max(1, ...annotations.map((annotation) => annotation.temperature ?? 0));
   const downloadCurrentSvg = () => {
     if (svgRef.current) downloadSvgElement(svgRef.current, downloadFileName);
+  };
+  const svgPoint = (event: ReactPointerEvent<SVGGElement>) => {
+    const matrix = svgRef.current?.getScreenCTM();
+    return matrix ? new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse()) : null;
+  };
+  const updateDraggedTip = (event: ReactPointerEvent<SVGGElement>, leaf: TreeNode) => {
+    const drag = tipDragRef.current;
+    if (!onTipTransform || drag?.pointerId !== event.pointerId) return;
+    const point = svgPoint(event);
+    if (!point) return;
+    if (drag.mode === "move") {
+      onTipTransform(leaf.name, {
+        translate_x: drag.startTranslate.x + point.x - drag.startPoint.x,
+        translate_y: drag.startTranslate.y + point.y - drag.startPoint.y
+      });
+      return;
+    }
+    const pointerAngle = Math.atan2(point.y - drag.rotationCenter.y, point.x - drag.rotationCenter.x) * 180 / Math.PI;
+    const angleDelta = normalizeDegrees(pointerAngle - drag.startPointerAngle);
+    onTipTransform(leaf.name, { angle: normalizeDegrees(drag.startAngle + angleDelta) });
   };
 
   return (
@@ -167,32 +279,70 @@ export const PhylogeneticTreePreview = forwardRef<PhylogeneticTreePreviewHandle,
         role="img"
         aria-label="IQ-TREE phylogenetic tree"
         data-layout={layoutMode}
+        onClick={(event) => {
+          if (!(event.target instanceof Element) || !event.target.closest(".tree-tip-group")) setSelectedTip(null);
+        }}
+        onContextMenu={(event) => {
+          if (event.target === event.currentTarget) {
+            onCanvasContextMenu?.(event);
+          }
+        }}
         style={displayScale === undefined
           ? { minWidth: layout.width, backgroundColor }
           : { width: layout.width * displayScale, height: layout.height * displayScale, minWidth: 0, backgroundColor }}
       >
-        {layoutMode === "rectangular" ? layout.segments.map((segment, index) => (
+        {layoutMode === "rectangular" ? layout.segments.map((segment, index) => {
+          const nodeId = segment.child ? cladeNodeId(segment.child) : "";
+          const nodeOverride = nodeId ? nodeOverrides[nodeId] : undefined;
+          return (
           <line
-            className={`tree-branch ${matchedPathNodes.has(segment.child as TreeNode) ? "search-hit" : search ? "search-dimmed" : ""}`}
+            className={`tree-branch ${matchedPathNodes.has(segment.child as TreeNode) ? "search-hit" : nodeOverride?.branch_highlight ? "clade-highlighted" : search ? "search-dimmed" : ""}`}
             key={`segment-${index}`}
             x1={segment.x1}
             y1={segment.y1}
             x2={segment.x2}
             y2={segment.y2}
-            style={{ stroke: branchColor, strokeWidth: branchWidth }}
+            onContextMenu={segment.child ? (event) => onNodeContextMenu?.(event, nodeId, cladeLabel(segment.child as TreeNode)) : undefined}
+            style={{
+              stroke: nodeOverride?.branch_highlight ? nodeOverride.branch_color ?? "#d87a33" : branchColor,
+              strokeWidth: nodeOverride?.branch_highlight ? (nodeOverride.branch_width === undefined ? Math.max(branchWidth + 1.5, 3) : nodeOverride.branch_width * lineWidthScale) : branchWidth
+            }}
           />
-        )) : radialPaths.map(({ d, child }, index) => (
+          );
+        }) : radialPaths.map(({ d, child }, index) => {
+          const nodeId = cladeNodeId(child);
+          const nodeOverride = nodeOverrides[nodeId];
+          return (
           <path
             key={`radial-${index}`}
             d={d}
             fill="none"
-            className={`tree-branch ${matchedPathNodes.has(child) ? "search-hit" : search ? "search-dimmed" : ""}`}
-            style={{ stroke: branchColor, strokeWidth: branchWidth }}
+            className={`tree-branch ${matchedPathNodes.has(child) ? "search-hit" : nodeOverride?.branch_highlight ? "clade-highlighted" : search ? "search-dimmed" : ""}`}
+            onContextMenu={(event) => onNodeContextMenu?.(event, nodeId, cladeLabel(child))}
+            style={{
+              stroke: nodeOverride?.branch_highlight ? nodeOverride.branch_color ?? "#d87a33" : branchColor,
+              strokeWidth: nodeOverride?.branch_highlight ? (nodeOverride.branch_width === undefined ? Math.max(branchWidth + 1.5, 3) : nodeOverride.branch_width * lineWidthScale) : branchWidth
+            }}
           />
-        ))}
-        {layout.nodes.map((node, index) => (
-          <g className="tree-node-group" key={`node-${index}`}>
-            <circle className={node.children.length > 0 ? "tree-node internal" : "tree-node tip"} cx={node.x} cy={node.y} r={node.children.length > 0 ? 3 : 2.5} />
+          );
+        })}
+        {layout.nodes.map((node, index) => {
+          const nodeId = cladeNodeId(node);
+          const nodeOverride = nodeOverrides[nodeId];
+          return (
+          <g
+            className="tree-node-group"
+            key={`node-${index}`}
+            onContextMenu={node.children.length > 0 ? (event) => onNodeContextMenu?.(event, nodeId, cladeLabel(node)) : undefined}
+          >
+            {showNodes && node.children.length > 0 ? (
+              <circle
+                className={`tree-node internal ${nodeOverride?.branch_highlight ? "highlighted" : ""}`}
+                cx={node.x}
+                cy={node.y}
+                r={Math.max(0.6 * lineWidthScale, branchWidth * 1.7) / 2}
+              />
+            ) : null}
             {renderSupport(node, {
               showSupport,
               supportMode,
@@ -200,26 +350,130 @@ export const PhylogeneticTreePreview = forwardRef<PhylogeneticTreePreviewHandle,
               lowSupportThreshold,
               supportOrder,
               supportStep,
-              supportColor
+              supportColor,
+              supportFontSize,
+              textSizeScale,
+              override: supportOverrides[cladeNodeId(node)],
+              supportId: cladeNodeId(node),
+              onSupportContextMenu
             })}
           </g>
-        ))}
-        {showTipLabels ? layout.leaves.map((leaf, index) => (
-          <g className="tree-tip-group" key={`label-${leaf.name}-${index}`}>
+          );
+        })}
+        {layout.leaves.map((leaf, index) => {
+          const labelOverride = labelOverrides[leaf.name];
+          const hiddenByMode = labelMode === "hover" || labelMode === "search" && !matchedLeaves.has(leaf) || (labelMode === "auto" && index % labelStep !== 0 && !matchedLeaves.has(leaf));
+          const shouldShowLabel = labelOverride?.visible ?? showTipLabels;
+          if (!shouldShowLabel) return null;
+          const localLabelOffsetPx = Math.max(0, labelOverride?.offset ?? tipLabelOffset) * layout.treeUnitsToPixels;
+          const labelX = layoutMode === "rectangular" ? (alignTips ? layout.labelX : leaf.x) + 8 + localLabelOffsetPx : leaf.x;
+          const labelY = layoutMode === "rectangular" ? leaf.y + 4 : leaf.y;
+          const labelAngle = labelOverride?.angle ?? tipLabelAngle;
+          const translateX = labelOverride?.translate_x ?? 0;
+          const translateY = labelOverride?.translate_y ?? 0;
+          const renderedFontSize = labelOverride?.font_size ? labelOverride.font_size * textSizeScale : tipFontSize;
+          const measuredBox = selectionBox?.tipName === leaf.name ? selectionBox : null;
+          const selectionWidth = measuredBox?.width ?? Math.max(renderedFontSize, leaf.name.length * renderedFontSize * 0.58);
+          const selectionHeight = measuredBox?.height ?? renderedFontSize;
+          const selectionX = (measuredBox?.x ?? labelX) - 4;
+          const selectionY = (measuredBox?.y ?? labelY - renderedFontSize) - 4;
+          const selectionTransform = labelTransform(leaf, layoutMode, labelX, labelY, localLabelOffsetPx, labelAngle);
+          const beginTipDrag = (event: ReactPointerEvent<SVGGElement>, mode: "move" | "rotate") => {
+            if (event.button !== 0) return;
+            const point = svgPoint(event);
+            if (!point) return;
+            event.preventDefault();
+            event.stopPropagation();
+            setSelectedTip(leaf.name);
+            event.currentTarget.closest<SVGGElement>(".tree-tip-group")?.focus();
+            const rotationCenter = layoutMode === "rectangular"
+              ? { x: labelX + translateX, y: labelY + translateY }
+              : { x: leaf.x + translateX, y: leaf.y + translateY };
+            tipDragRef.current = {
+              pointerId: event.pointerId,
+              leafName: leaf.name,
+              mode,
+              startPoint: point,
+              startTranslate: { x: translateX, y: translateY },
+              startAngle: labelAngle,
+              startPointerAngle: Math.atan2(point.y - rotationCenter.y, point.x - rotationCenter.x) * 180 / Math.PI,
+              rotationCenter
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          };
+          return (
+          <g
+            className={`tree-tip-group ${onTipTransform ? "is-editable" : ""} ${selectedTip === leaf.name ? "is-selected" : ""}`}
+            key={`label-${leaf.name}-${index}`}
+            tabIndex={onTipTransform ? 0 : undefined}
+            role={onTipTransform ? "button" : undefined}
+            aria-label={onTipTransform ? `编辑标签 ${leaf.name}` : undefined}
+            transform={`translate(${translateX} ${translateY})`}
+            onClick={onTipTransform ? (event) => {
+              event.stopPropagation();
+              setSelectedTip(leaf.name);
+              event.currentTarget.focus();
+            } : undefined}
+            onFocus={onTipTransform ? () => setSelectedTip(leaf.name) : undefined}
+            onContextMenu={(event) => onTipContextMenu?.(event, leaf.name)}
+            onKeyDown={onTipTransform ? (event) => {
+              const step = event.shiftKey ? 10 : 1;
+              const delta = event.key === "ArrowLeft" ? [-step, 0] : event.key === "ArrowRight" ? [step, 0] : event.key === "ArrowUp" ? [0, -step] : event.key === "ArrowDown" ? [0, step] : null;
+              if (!delta) return;
+              event.preventDefault();
+              event.stopPropagation();
+              onTipTransform(leaf.name, { translate_x: translateX + delta[0], translate_y: translateY + delta[1] });
+            } : undefined}
+            onPointerDown={onTipTransform ? (event) => beginTipDrag(event, "move") : undefined}
+            onPointerMove={onTipTransform ? (event) => {
+              if (tipDragRef.current?.leafName !== leaf.name) return;
+              event.preventDefault();
+              event.stopPropagation();
+              updateDraggedTip(event, leaf);
+            } : undefined}
+            onPointerUp={onTipTransform ? (event) => {
+              if (tipDragRef.current?.pointerId !== event.pointerId) return;
+              updateDraggedTip(event, leaf);
+              tipDragRef.current = null;
+              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+            } : undefined}
+            onPointerCancel={onTipTransform ? (event) => {
+              if (tipDragRef.current?.pointerId === event.pointerId) tipDragRef.current = null;
+            } : undefined}
+          >
+            {selectedTip === leaf.name ? (
+              <g className="tree-tip-selection" transform={selectionTransform}>
+                <rect x={selectionX} y={selectionY} width={selectionWidth + 8} height={selectionHeight + 8} style={{ stroke: "#1473e6" }} />
+                <line x1={selectionX + (selectionWidth + 8) / 2} y1={selectionY} x2={selectionX + (selectionWidth + 8) / 2} y2={selectionY - 18} style={{ stroke: "#1473e6" }} />
+                <circle
+                  className="tree-tip-rotate-handle"
+                  cx={selectionX + (selectionWidth + 8) / 2}
+                  cy={selectionY - 22}
+                  r={5}
+                  style={{ stroke: "#1473e6" }}
+                  onPointerDown={(event) => beginTipDrag(event, "rotate")}
+                />
+              </g>
+            ) : null}
             {leaf.collapsedTipCount ? <path className="tree-collapsed-clade" d={`M ${leaf.x - 2} ${leaf.y - 6} L ${leaf.x + 9} ${leaf.y} L ${leaf.x - 2} ${leaf.y + 6} Z`} /> : null}
             <circle cx={leaf.x} cy={leaf.y} r={8} fill="transparent"><title>{leaf.name}</title></circle>
             <text
-              className={`tree-tip-label ${labelMode === "hover" || labelMode === "search" && !matchedLeaves.has(leaf) || (labelMode === "auto" && index % labelStep !== 0 && !matchedLeaves.has(leaf)) ? "collision-hidden" : ""} ${matchedLeaves.has(leaf) ? "search-hit" : search ? "search-dimmed" : ""}`}
-              x={layoutMode === "rectangular" ? (alignTips ? layout.labelX : leaf.x) + 8 : leaf.x}
-              y={layoutMode === "rectangular" ? leaf.y + 4 : leaf.y}
+              ref={(element) => {
+                if (element) tipTextRefs.current.set(leaf.name, element);
+                else tipTextRefs.current.delete(leaf.name);
+              }}
+              className={`tree-tip-label ${hiddenByMode && labelOverride?.visible !== true ? "collision-hidden" : ""} ${matchedLeaves.has(leaf) ? "search-hit" : search ? "search-dimmed" : ""}`}
+              x={labelX}
+              y={labelY}
               textAnchor={radialTextAnchor(leaf, layoutMode)}
-              transform={radialLabelTransform(leaf, layoutMode)}
+              transform={selectionTransform}
             >
               <title>{leaf.name}</title>
-              <tspan style={{ fill: tipColor, fontSize: tipFontSize }}>{leaf.name}</tspan>
+              <tspan style={{ fill: labelOverride?.color ?? tipColor, fontSize: renderedFontSize }}>{leaf.name}</tspan>
             </text>
           </g>
-        )) : null}
+          );
+        })}
         {hasAnnotations ? layout.leaves.map((leaf, index) => (
           <AnnotationRow
             key={`annotation-${leaf.name}-${index}`}
@@ -247,10 +501,14 @@ function safeBuildLayout(
   root: TreeNode,
   showBranchLength: boolean,
   tipSpacing: number,
-  hasAnnotations: boolean
+  hasAnnotations: boolean,
+  xExpand: number,
+  rightMargin: number,
+  canvasWidth?: number,
+  canvasHeight?: number
 ): TreeLayout | null {
   try {
-    return buildLayout(root, showBranchLength, tipSpacing, hasAnnotations);
+    return buildLayout(root, showBranchLength, tipSpacing, hasAnnotations, xExpand, rightMargin, canvasWidth, canvasHeight);
   } catch {
     return null;
   }
@@ -334,20 +592,35 @@ function buildLayout(
   root: TreeNode,
   showBranchLength = true,
   tipSpacing = 1,
-  hasAnnotations = false
+  hasAnnotations = false,
+  xExpand = 0,
+  rightMargin = 0,
+  canvasWidth?: number,
+  canvasHeight?: number
 ): TreeLayout {
   const leaves: TreeNode[] = [];
   const nodes: TreeNode[] = [];
   const segments: Segment[] = [];
   const usesBranchLength = showBranchLength && hasBranchLength(root);
-  const width = estimateWidth(root, hasAnnotations);
+  const fixedCanvas = Boolean(canvasWidth && canvasHeight);
+  const baseWidth = canvasWidth ?? estimateWidth(root, hasAnnotations);
   const leafCount = collectLeafNames(root).length;
-  const rowHeight = (leafCount > 200 ? 14 : leafCount > 80 ? 20 : ROW_HEIGHT) * Math.max(0.7, Math.min(2.4, tipSpacing));
+  const naturalRowHeight = (leafCount > 200 ? 14 : leafCount > 80 ? 20 : ROW_HEIGHT) * Math.max(0.7, Math.min(2.4, tipSpacing));
+  const fittedRowHeight = leafCount > 1 && canvasHeight ? (canvasHeight - TOP_PAD * 2) / (leafCount - 1) : naturalRowHeight;
+  // A ggtree export has a fixed physical canvas. Keep the React preview on that
+  // same canvas instead of allowing its React-only row spacing to grow the SVG.
+  const rowHeight = fixedCanvas ? fittedRowHeight : naturalRowHeight;
 
   assignDistances(root, 0, usesBranchLength);
   const maxDistance = Math.max(findMaxDistance(root), 1);
   const annotationWidth = hasAnnotations ? 360 : 0;
-  const drawableWidth = width - LEFT_PAD - RIGHT_PAD - annotationWidth;
+  const availableWidth = baseWidth - LEFT_PAD - RIGHT_PAD - annotationWidth;
+  const expansionWidth = fixedCanvas
+    ? availableWidth * Math.max(0, xExpand) / (1 + Math.max(0, xExpand))
+    : availableWidth * Math.max(0, xExpand);
+  const marginWidth = Math.max(0, rightMargin) * 96 / 72;
+  const drawableWidth = Math.max(80, availableWidth - (fixedCanvas ? expansionWidth + marginWidth : 0));
+  const width = fixedCanvas ? baseWidth : baseWidth + expansionWidth + marginWidth;
   const labelX = LEFT_PAD + drawableWidth;
   const annotationX = labelX + RIGHT_PAD - 110;
 
@@ -373,13 +646,17 @@ function buildLayout(
 
   return {
     width,
-    height: Math.max(TOP_PAD * 2 + Math.max(leaves.length - 1, 0) * rowHeight, 120),
+    height: fixedCanvas
+      ? Math.max(canvasHeight ?? 0, 120)
+      : Math.max(TOP_PAD * 2 + Math.max(leaves.length - 1, 0) * rowHeight, 120),
     leaves,
     nodes,
     segments,
     usesBranchLength,
     labelX,
-    annotationX
+    annotationX,
+    treeUnitsToPixels: drawableWidth / maxDistance,
+    fixedCanvas
   };
 }
 
@@ -397,7 +674,12 @@ function renderSupport(
     lowSupportThreshold,
     supportOrder,
     supportStep,
-    supportColor
+    supportColor,
+    supportFontSize,
+    textSizeScale,
+    override,
+    supportId,
+    onSupportContextMenu
   }: {
     showSupport: boolean;
     supportMode: NonNullable<PhylogeneticTreePreviewProps["supportMode"]>;
@@ -406,33 +688,49 @@ function renderSupport(
     supportOrder: Map<TreeNode, number>;
     supportStep: number;
     supportColor: string;
+    supportFontSize: number;
+    textSizeScale: number;
+    override?: TreeSupportOverride;
+    supportId: string;
+    onSupportContextMenu?: (event: MouseEvent<SVGGElement>, supportId: string, supportLabel: string) => void;
   }
 ) {
-  if (!showSupport || node.children.length === 0 || !node.support) return null;
-  if (supportMode === "none") return null;
+  if (node.children.length === 0 || !node.support) return null;
+  const isVisible = override?.visible ?? showSupport;
+  if (!isVisible) return null;
+  const mode = override?.mode ?? supportMode;
+  if (mode === "none") return null;
   const value = supportValue(node.support);
-  if (value < supportThreshold) return null;
+  if (mode !== "low" && value < supportThreshold) return null;
   const x = node.x + (node.angle === undefined ? 7 : Math.cos(node.angle) * 9);
   const y = node.y + (node.angle === undefined ? -6 : Math.sin(node.angle) * 9);
+  const color = override?.color ?? supportColor;
+  const fontSize = override?.font_size ? override.font_size * textSizeScale : supportFontSize;
 
-  if (supportMode === "dots") {
-    const radius = value >= 95 ? 3.5 : value >= lowSupportThreshold ? 2.5 : 0;
-    return radius ? <circle className="tree-support-dot" cx={x} cy={y} r={radius} style={{ fill: supportColor }}><title>{node.support}</title></circle> : null;
+  if (mode === "dots") {
+    const radius = Math.max(1.2 * textSizeScale, supportFontSize * 0.75) / 2;
+    return (
+      <g className="tree-support-target" onContextMenu={(event) => onSupportContextMenu?.(event, supportId, node.support)}>
+        <circle className="tree-support-dot" cx={x} cy={y} r={radius} style={{ fill: color }}><title>{node.support}</title></circle>
+      </g>
+    );
   }
 
-  if (supportMode === "low" && value >= lowSupportThreshold) {
-    return <circle className="tree-support-dot" cx={x} cy={y} r={2.8} style={{ fill: supportColor }}><title>{node.support}</title></circle>;
+  if (mode === "low" && value >= lowSupportThreshold) {
+    return null;
   }
 
   return (
-    <text
-      className={`tree-support-label ${supportMode === "hover" || (supportMode === "auto" && (supportOrder.get(node) ?? 0) % supportStep !== 0) ? "collision-hidden" : ""}`}
-      x={x}
-      y={y}
-      style={{ fill: supportColor }}
-    >
-      {node.support}
-    </text>
+    <g className="tree-support-target" onContextMenu={(event) => onSupportContextMenu?.(event, supportId, node.support)}>
+      <text
+        className={`tree-support-label ${mode === "hover" || (mode === "auto" && (supportOrder.get(node) ?? 0) % supportStep !== 0) ? "collision-hidden" : ""}`}
+        x={x}
+        y={y}
+        style={{ fill: color, fontSize }}
+      >
+        {node.support}
+      </text>
+    </g>
   );
 }
 
@@ -483,6 +781,23 @@ function collapseTree(root: TreeNode, minTips: number): TreeNode {
   return clone(root, true);
 }
 
+function applyTreeOverrides(root: TreeNode, nodeOverrides: Record<string, TreeNodeOverride>): TreeNode {
+  const clone = (node: TreeNode, isRoot = false): TreeNode => {
+    const nodeId = cladeNodeId(node);
+    const override = nodeOverrides[nodeId];
+    const leafCount = countLeaves(node);
+    if (!isRoot && node.children.length > 0 && override?.collapsed) {
+      return makeNode(`Collapsed clade (${leafCount} tips)`, node.support, node.length, leafCount);
+    }
+    return {
+      ...makeNode(node.name, node.support, node.length, node.collapsedTipCount),
+      children: node.children.map((child) => clone(child))
+    };
+  };
+
+  return clone(root, true);
+}
+
 function makeNode(name: string, support: string, length: number | null, collapsedTipCount?: number): TreeNode {
   return {
     name,
@@ -523,22 +838,44 @@ function transformLayout(
   fanAngle: number,
   centerGap: number
 ): TreeLayout {
-  if (mode === "rectangular") return layout;
+  if (mode === "rectangular") {
+    // ggtree/ggplot uses an upward-growing y axis, so the first Newick tip is
+    // drawn at the bottom. SVG grows downward; mirror it to keep tip and clade
+    // orientation consistent with the exported ggtree figure.
+    layout.nodes.forEach((node) => {
+      node.y = layout.height - node.y;
+    });
+    layout.segments = layout.segments.map((segment) => ({
+      ...segment,
+      y1: layout.height - segment.y1,
+      y2: layout.height - segment.y2
+    }));
+    return layout;
+  }
 
   const sourceWidth = layout.labelX + RIGHT_PAD;
-  const sourceHeight = layout.height;
   const baseSize = Math.max(820, Math.min(2400, layout.leaves.length * (mode === "fan" ? 3.2 : 3)));
   const size = Math.max(700, Math.min(4000, baseSize * radialScale));
-  const center = size / 2;
-  const maxRadius = center - 110;
+  const outputWidth = layout.fixedCanvas ? layout.width : size;
+  const outputHeight = layout.fixedCanvas ? layout.height : size;
+  const centerX = outputWidth / 2;
+  const centerY = outputHeight / 2;
+  const maxRadius = Math.max(80, Math.min(centerX, centerY) - 70) * (layout.fixedCanvas ? radialScale : 1);
   const clampedFanAngle = Math.max(120, Math.min(360, fanAngle));
   const angleSpan = mode === "fan" ? (clampedFanAngle * Math.PI) / 180 : Math.PI * 2;
-  const startAngle = mode === "fan" ? -angleSpan / 2 : -Math.PI;
+  // ggtree maps tip indices 1..N onto the available clockwise angular span.
+  const startAngle = angleSpan / Math.max(layout.leaves.length, 1);
   const innerRadius = maxRadius * Math.max(0, Math.min(0.35, centerGap));
+  const sourceDrawableWidth = Math.max(1, sourceWidth - LEFT_PAD - RIGHT_PAD);
+  const radialTreeUnitsToPixels = layout.treeUnitsToPixels * (maxRadius - innerRadius) / sourceDrawableWidth;
+  const firstTipY = layout.leaves[0]?.y ?? TOP_PAD;
+  const lastTipY = layout.leaves[layout.leaves.length - 1]?.y ?? firstTipY;
+  const angularRange = Math.max(1, lastTipY - firstTipY);
+  const mappedAngleSpan = angleSpan - startAngle;
   const mapPoint = (x: number, y: number) => {
-    const radius = innerRadius + ((x - LEFT_PAD) / Math.max(1, sourceWidth - LEFT_PAD - RIGHT_PAD)) * (maxRadius - innerRadius);
-    const angle = startAngle + ((y - TOP_PAD) / Math.max(1, sourceHeight - TOP_PAD * 2)) * angleSpan;
-    return { x: center + Math.cos(angle) * radius, y: center + Math.sin(angle) * radius, angle, radius };
+    const radius = innerRadius + ((x - LEFT_PAD) / sourceDrawableWidth) * (maxRadius - innerRadius);
+    const angle = startAngle + ((y - firstTipY) / angularRange) * mappedAngleSpan;
+    return { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius, angle, radius };
   };
 
   layout.nodes.forEach((node) => Object.assign(node, mapPoint(node.x, node.y)));
@@ -547,17 +884,18 @@ function transformLayout(
     const end = mapPoint(segment.x2, segment.y2);
     return { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
   });
-  layout.width = size;
-  layout.height = size;
+  layout.width = outputWidth;
+  layout.height = outputHeight;
+  layout.treeUnitsToPixels = radialTreeUnitsToPixels;
   return layout;
 }
 
-function collectRadialPaths(root: TreeNode, center: number): Array<{ d: string; child: TreeNode }> {
+function collectRadialPaths(root: TreeNode, centerX: number, centerY: number): Array<{ d: string; child: TreeNode }> {
   const paths: Array<{ d: string; child: TreeNode }> = [];
   const visit = (parent: TreeNode) => {
     parent.children.forEach((child) => {
       if (parent.angle === undefined || parent.radius === undefined || child.angle === undefined || child.radius === undefined) return;
-      const arcEnd = polarPoint(center, parent.radius, child.angle);
+      const arcEnd = polarPoint(centerX, centerY, parent.radius, child.angle);
       const angleDelta = Math.abs(child.angle - parent.angle);
       const sweep = child.angle >= parent.angle ? 1 : 0;
       const d = parent.radius < 0.5
@@ -571,8 +909,12 @@ function collectRadialPaths(root: TreeNode, center: number): Array<{ d: string; 
   return paths;
 }
 
-function polarPoint(center: number, radius: number, angle: number) {
-  return { x: center + Math.cos(angle) * radius, y: center + Math.sin(angle) * radius };
+function polarPoint(centerX: number, centerY: number, radius: number, angle: number) {
+  return { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius };
+}
+
+function normalizeDegrees(value: number): number {
+  return ((value + 180) % 360 + 360) % 360 - 180;
 }
 
 function radialTextAnchor(leaf: TreeNode, mode: PhylogeneticTreePreviewProps["layoutMode"]): "start" | "end" {
@@ -580,13 +922,22 @@ function radialTextAnchor(leaf: TreeNode, mode: PhylogeneticTreePreviewProps["la
   return Math.cos(leaf.angle) < 0 ? "end" : "start";
 }
 
-function radialLabelTransform(leaf: TreeNode, mode: PhylogeneticTreePreviewProps["layoutMode"]): string | undefined {
-  if (mode === "rectangular" || leaf.angle === undefined) return undefined;
+function labelTransform(
+  leaf: TreeNode,
+  mode: PhylogeneticTreePreviewProps["layoutMode"],
+  x: number,
+  y: number,
+  offsetPx: number,
+  angleDegrees: number
+): string | undefined {
+  if (mode === "rectangular" || leaf.angle === undefined) {
+    return angleDegrees ? `rotate(${angleDegrees} ${x} ${y})` : undefined;
+  }
   let degrees = (leaf.angle * 180) / Math.PI;
   const flip = Math.cos(leaf.angle) < 0;
   if (flip) degrees += 180;
-  const offset = flip ? -9 : 9;
-  return `rotate(${degrees} ${leaf.x} ${leaf.y}) translate(${offset} 4)`;
+  const offset = flip ? -(9 + offsetPx) : 9 + offsetPx;
+  return `rotate(${degrees + angleDegrees} ${leaf.x} ${leaf.y}) translate(${offset} 4)`;
 }
 
 function assignDistances(node: TreeNode, parentDistance: number, usesBranchLength: boolean) {
@@ -633,6 +984,15 @@ function collectLeafNames(node: TreeNode): string[] {
   return node.children.flatMap(collectLeafNames);
 }
 
+function cladeNodeId(node: TreeNode): string {
+  return `clade:${collectLeafNames(node).sort().join("|")}`;
+}
+
+function cladeLabel(node: TreeNode): string {
+  if (node.children.length === 0) return node.name || "unnamed tip";
+  return `Clade (${countLeaves(node)} tips)`;
+}
+
 function isNumericLabel(label: string): boolean {
   return /^\d+(?:\.\d+)?(?:\/\d+(?:\.\d+)?)?$/.test(label);
 }
@@ -664,15 +1024,15 @@ function downloadSvgElement(svgElement: SVGSVGElement, fileName: string) {
     .tree-node { stroke: #fbfcfa; stroke-width: 1.5; }
     .tree-node.internal { fill: #326b4d; }
     .tree-node.tip { fill: #1d3528; }
-    .tree-tip-label { font-family: Inter, Arial, sans-serif; font-weight: 800; }
-    .tree-support-label { font-family: Menlo, Consolas, monospace; font-size: 10px; font-weight: 800; }
+    .tree-tip-label { font-family: "Times New Roman", Times, serif; font-weight: 400; }
+    .tree-support-label { font-family: "Times New Roman", Times, serif; font-size: 10px; font-weight: 400; }
     .tree-tip-label.collision-hidden, .tree-support-label.collision-hidden { opacity: 0; }
     .tree-branch.search-dimmed, .tree-tip-label.search-dimmed { opacity: 0.22; }
     .tree-branch.search-hit { stroke: #d87a33 !important; stroke-width: 4; }
     .tree-tip-label.search-hit { font-weight: 900; }
     .tree-support-dot { stroke: #fbfcfa; stroke-width: 1; }
     .tree-collapsed-clade { fill: #326b4d; opacity: 0.85; }
-    .tree-annotation-text { fill: #4f6158; font-family: Inter, Arial, sans-serif; font-size: 10px; font-weight: 700; }
+    .tree-annotation-text { fill: #4f6158; font-family: "Times New Roman", Times, serif; font-size: 10px; font-weight: 400; }
     .tree-annotation-bar.protein { fill: #5b8f75; }
     .tree-annotation-bar.gc { fill: #d6a45f; }
     .tree-annotation-bar.temp { fill: #8aa8c8; }
