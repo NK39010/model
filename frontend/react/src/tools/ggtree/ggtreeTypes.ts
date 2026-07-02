@@ -7,6 +7,13 @@ export interface GgtreePayload {
   show_support: boolean;
   show_branch_length: boolean;
   tip_font_size: number;
+  branch_width: number;
+  branch_color: string;
+  tip_label_color: string;
+  support_color: string;
+  background_color: string;
+  support_threshold: number;
+  dpi: number;
   width: number;
   height: number;
 }
@@ -18,6 +25,13 @@ export interface GgtreeResult {
   show_support: boolean;
   show_branch_length: boolean;
   tip_font_size: number;
+  branch_width: number;
+  branch_color: string;
+  tip_label_color: string;
+  support_color: string;
+  background_color: string;
+  support_threshold: number;
+  dpi: number;
   width: number;
   height: number;
   tip_count: number;

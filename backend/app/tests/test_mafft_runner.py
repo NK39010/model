@@ -132,9 +132,8 @@ def _mock_mafft(stdout: str):
     binary = MafftBinary(path=Path("/usr/bin/mafft"), version="7.526", source="system")
     completed = subprocess.CompletedProcess(args=["mafft"], returncode=0, stdout=stdout, stderr="")
     run_mock = Mock(return_value=completed)
-    subprocess_mock = Mock(run=run_mock, TimeoutExpired=subprocess.TimeoutExpired)
     with patch("app.tools.mafft.runner.resolve_mafft_binary", Mock(return_value=binary)):
-        with patch("app.tools.mafft.runner.subprocess", subprocess_mock):
+        with patch("app.tools.mafft.runner.run_process", run_mock):
             yield run_mock
 
 

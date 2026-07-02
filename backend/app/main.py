@@ -20,6 +20,7 @@ def main() -> None:
     print("  GET  /api/tools")
     print("  POST /api/jobs")
     print("  GET  /api/jobs/{job_id}")
+    print("  POST /api/jobs/{job_id}/cancel")
     server.serve_forever()
 
 

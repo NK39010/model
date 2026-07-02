@@ -1,18 +1,20 @@
-# Documents how to run and extend the modular bioinformatics backend.
-
 # Bio Tool Backend
 
-这是一个最小模块化生物信息后端示例。当前已经包含：
+这是一个模块化生物信息工具应用。React 前端通过统一任务 API 调用相互隔离的后端工具模块。
+
+当前前端工作流包含：
 
 ```text
-reference_similarity_table
-pairwise_similarity_matrix
-ncbi_refseq_lookup
-ncbi_blast_lookup
-sequence_parts_parse
 mafft_alignment
 MSA_quality
+trimal_alignment_trimming
+BMGE
+iqtree_phylogeny
+ggtree_visualization
 ```
+
+后端还注册了序列相似性、NCBI 查询、FASTA 生成、引物设计、密码子优化、菌落计数、
+启动子/抗性标记选择和 PyMOL 控制等模块。以 `GET /api/tools` 返回的清单为准。
 
 所有工具统一通过任务接口调用：
 
@@ -29,7 +31,84 @@ POST /api/jobs
 }
 ```
 
-## 启动
+## Docker（推荐）
+
+Docker 镜像包含 Python、React 构建产物、R/ggtree、IQ-TREE 和 MAFFT，
+因此其他设备拉取仓库后不需要配置本机工具路径。
+
+镜像目前不包含 PyMOL；`pymol_control` 需要单独扩展镜像。NCBI 类工具仍需要容器能够访问互联网。
+
+要求设备已安装 Docker Desktop（Windows/macOS）或 Docker Engine 与 Compose 插件（Linux）。
+
+先确认 Docker 可用：
+
+```bash
+docker --version
+docker compose version
+```
+
+如果之前运行过 `uv run api`，请先在那个终端按 `Ctrl+C` 停止本机后端，避免它占用 8000 端口。
+
+首次构建并启动：
+
+```bash
+docker compose up --build
+```
+
+之后启动：
+
+```bash
+docker compose up
+```
+
+打开：
+
+```text
+http://127.0.0.1:8000
+```
+
+任务结果通过绑定目录保存在宿主机的 `data/results/`。停止服务：
+
+```bash
+docker compose down
+```
+
+镜像构建期间需要下载 Python、前端、R/Bioconductor 和系统依赖，首次构建会比较久。
+根目录 `.env` 只用于不使用 Docker 的本机运行，不会复制到镜像中。
+
+### Docker 中检查 ggtree
+
+容器启动后可以确认 Rscript 和 ggtree 均来自容器：
+
+```bash
+docker compose exec bio-tool Rscript --version
+docker compose exec bio-tool Rscript -e 'library(ggtree); packageVersion("ggtree")'
+```
+
+如果网页仍显示 `Rscript was not found`，说明浏览器连接的还是本机 `uv run api`，
+而不是 Docker 服务。执行 `docker compose ps` 检查容器状态，并确认没有旧的本机服务占用 8000 端口。
+
+## 本机启动（不使用 Docker）
+
+本机模式不会自动安装 R、ggtree 或 IQ-TREE；需要按 `.env.example` 的说明自行安装并配置。
+
+macOS（Homebrew）可先安装系统工具：
+
+```bash
+brew install r iqtree3
+```
+
+安装 R 后，用项目脚本安装与当前 R 版本匹配的 ggtree/Bioconductor 依赖：
+
+```bash
+Rscript scripts/install_r_packages.R
+```
+
+`svglite` 仅用于 SVG 输出；缺少它时 PNG 和 PDF 仍可生成。
+
+ggtree 的输入区只负责 Newick；结果设计台支持实时调整布局、字号、分支线宽、颜色、
+背景和支持度阈值，并支持 50%–200% 缩放。确认样式后再调用 R/ggtree 生成高质量文件；
+画布尺寸和 DPI 只影响最终导出。
 
 安装依赖：
 
@@ -152,6 +231,26 @@ IQTREE_BINARY=/opt/homebrew/bin/iqtree3
 IQTREE_BINARY="C:\Program Files\IQ-TREE\iqtree3.exe"
 ```
 
+### R / ggtree
+
+`ggtree_visualization` 的查找顺序是：
+
+```text
+RSCRIPT_BINARY -> Rscript
+```
+
+通常只需让 `Rscript` 位于 `PATH`，再执行：
+
+```bash
+Rscript scripts/install_r_packages.R
+```
+
+只有 R 安装在自定义位置时才需要在 `.env` 设置绝对路径，例如：
+
+```text
+RSCRIPT_BINARY=/opt/homebrew/bin/Rscript
+```
+
 ## 接口
 
 ```text
@@ -159,7 +258,11 @@ GET  /
 GET  /api/tools
 POST /api/jobs
 GET  /api/jobs/{job_id}
+GET  /api/jobs/{job_id}/files/{file_name}
 ```
+
+任务当前为同步执行：`POST /api/jobs` 会在工具运行结束后返回完成或失败的任务记录。
+任务元数据和结果文件保存在 `data/results/job_*/`。
 
 ## 后端结构
 
@@ -188,7 +291,9 @@ frontend/
 ## 测试
 
 ```bash
-uv run python -m unittest discover backend/app/tests
+node frontend/check_inline_script.js
+PYTHONPATH=backend uv run python -m unittest discover backend/app/tests
+cd frontend && pnpm run typecheck && pnpm run build
 ```
 
 ## Windows exe / 安装包构建

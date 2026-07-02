@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { FilePicker } from "../../shared/components/FilePicker";
 import { HelpTip } from "../../shared/components/HelpTip";
 import { ResultFiles } from "../../shared/components/ResultFiles";
-import { getJob } from "../../api/jobs";
+import { cancelJob, getJob, getJobInput } from "../../api/jobs";
 import { StatusMessage } from "../../shared/components/StatusMessage";
 import { ToolHistoryMenu } from "../../shared/components/ToolHistoryMenu";
+import { ToolRunStatus } from "../../shared/components/ToolRunStatus";
+import { useRunTimer } from "../../shared/hooks/useRunTimer";
 import type { JobRecord } from "../../shared/types/job";
 import { parseFasta, recordsToFasta } from "../../shared/utils/fasta";
 import { addToolHistory, readToolHistory, type ToolHistoryItem } from "../../shared/utils/toolHistory";
@@ -39,9 +41,10 @@ interface TrimalPanelProps {
   initialFasta?: string;
   onAnalyzeTrimmed: (trimmedFasta: string) => void;
   onBuildTree?: (trimmedFasta: string) => void;
+  onRunningChange?: (running: boolean) => void;
 }
 
-export function TrimalPanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }: TrimalPanelProps) {
+export function TrimalPanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree, onRunningChange }: TrimalPanelProps) {
   const [payload, setPayload] = useState<TrimalPayload>({
     aligned_fasta: initialFasta || EXAMPLE_ALIGNED,
     sequence_type: "auto",
@@ -53,6 +56,7 @@ export function TrimalPanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }
   const [job, setJob] = useState<JobRecord<TrimalResult> | null>(null);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const { elapsedSeconds, startTimer } = useRunTimer(isRunning);
   const [isInputOpen, setIsInputOpen] = useState(true);
   const [inputFile, setInputFile] = useState<{ name: string; size: number } | null>(null);
   const [historyItems, setHistoryItems] = useState<Array<ToolHistoryItem<TrimalPayload>>>(() =>
@@ -69,8 +73,10 @@ export function TrimalPanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }
       setPayload((current) => ({ ...current, aligned_fasta: initialFasta }));
     }
   }, [initialFasta]);
+  useEffect(() => onRunningChange?.(isRunning), [isRunning, onRunningChange]);
 
   const submit = async () => {
+    startTimer();
     const records = parseFasta(payload.aligned_fasta);
     if (records.length < 2 || new Set(records.map((record) => record.sequence.length)).size !== 1) {
       setError("trimAl 需要至少两条长度一致的已比对序列。");
@@ -78,9 +84,10 @@ export function TrimalPanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }
       return;
     }
     setIsRunning(true);
+    setIsInputOpen(false);
     setError("");
     try {
-      const nextJob = await runTrimal(payload);
+      const nextJob = await runTrimal(payload, { onStarted: setJob, onUpdate: setJob });
       setJob(nextJob);
       setHistoryItems(
         addToolHistory<TrimalPayload>(TOOL_NAME, {
@@ -100,18 +107,29 @@ export function TrimalPanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }
     }
   };
 
+  const stop = async () => { if (job) { setJob(await cancelJob<TrimalResult>(job.id)); setIsRunning(false); } };
+
   const restoreHistory = async (item: ToolHistoryItem<TrimalPayload>) => {
-    setPayload(item.payload);
     setInputFile(item.inputFileSize === undefined ? null : { name: item.fileName, size: item.inputFileSize });
     setError("");
-    if (!item.jobId) { setJob(null); setIsInputOpen(true); return; }
+    if (!item.jobId) { if (item.payload) setPayload(item.payload); setJob(null); setIsInputOpen(true); return; }
     setIsRunning(true);
     try {
-      setJob(await getJob<TrimalResult>(item.jobId));
+      const [restoredJob, restoredPayload] = await Promise.all([
+        getJob<TrimalResult>(item.jobId),
+        item.payload ? Promise.resolve(item.payload) : getJobInput<TrimalPayload>(item.jobId)
+      ]);
+      setPayload(restoredPayload);
+      setJob(restoredJob);
       setIsInputOpen(false);
     } catch (caught) {
       setJob(null);
-      setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      if (item.payload) {
+        setPayload(item.payload);
+        setError("历史结果文件不在当前后端环境中，已恢复输入参数；需要重新运行以生成结果。");
+      } else {
+        setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      }
       setIsInputOpen(true);
     } finally { setIsRunning(false); }
   };
@@ -125,7 +143,7 @@ export function TrimalPanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }
           <button className="input-toggle-button" type="button" onClick={() => setIsInputOpen((value) => !value)} aria-expanded={isInputOpen}>
             <div className="input-card-title">
               <p className="eyebrow">trimAl</p>
-              <h2>{isInputOpen ? "比对修剪输入" : "trimAl 输入"}</h2>
+              <h2>Input</h2>
             </div>
             {!isInputOpen ? (
               <span className="input-parameter-summary">
@@ -201,7 +219,9 @@ export function TrimalPanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }
       </div>
 
       <div className="tool-results">
-        {job?.result ? (
+        {isRunning ? (
+          <ToolRunStatus title="正在修剪比对" description="trimAl 正在筛选低质量比对列。" elapsedSeconds={elapsedSeconds} stage="执行列筛选与结果整理" onCancel={job ? stop : undefined} metrics={[{ label: "输入序列", value: parseFasta(payload.aligned_fasta).length }, { label: "模式", value: selectedMode.label }, { label: "类型", value: SEQUENCE_TYPE_LABEL[payload.sequence_type] }]} />
+        ) : job?.result ? (
           <TrimalResultView result={job.result} jobId={job.id} trimmedFasta={trimmedFasta} onAnalyzeTrimmed={onAnalyzeTrimmed} onBuildTree={onBuildTree} />
         ) : (
           <StatusMessage>提交已比对 FASTA 后，这里会显示修剪前后对比、删除区间和 trimmed FASTA。</StatusMessage>

@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { FilePicker } from "../../shared/components/FilePicker";
 import { HelpTip } from "../../shared/components/HelpTip";
 import { ResultFiles } from "../../shared/components/ResultFiles";
-import { getJob } from "../../api/jobs";
+import { cancelJob, getJob, getJobInput } from "../../api/jobs";
 import { StatusMessage } from "../../shared/components/StatusMessage";
 import { ToolHistoryMenu } from "../../shared/components/ToolHistoryMenu";
+import { ToolRunStatus } from "../../shared/components/ToolRunStatus";
+import { useRunTimer } from "../../shared/hooks/useRunTimer";
 import type { JobRecord } from "../../shared/types/job";
 import { parseFasta } from "../../shared/utils/fasta";
 import { addToolHistory, readToolHistory, type ToolHistoryItem } from "../../shared/utils/toolHistory";
 import { runIqtree } from "./iqtreeApi";
 import type { IqtreePayload, IqtreeResult } from "./iqtreeTypes";
-import { TreePreview } from "./TreePreview";
+import { PhylogeneticTreePreview } from "../../shared/components/PhylogeneticTreePreview";
 
 const TOOL_NAME = "iqtree_phylogeny";
 
@@ -34,9 +36,10 @@ const SEQUENCE_TYPE_LABEL: Record<IqtreePayload["sequence_type"], string> = {
 interface IqtreePanelProps {
   initialFasta?: string;
   onVisualizeTree?: (newick: string) => void;
+  onRunningChange?: (running: boolean) => void;
 }
 
-export function IqtreePanel({ initialFasta = "", onVisualizeTree }: IqtreePanelProps) {
+export function IqtreePanel({ initialFasta = "", onVisualizeTree, onRunningChange }: IqtreePanelProps) {
   const [payload, setPayload] = useState<IqtreePayload>({
     aligned_fasta: normalizeFastaInput(initialFasta) || EXAMPLE_ALIGNED,
     sequence_type: "auto",
@@ -53,8 +56,7 @@ export function IqtreePanel({ initialFasta = "", onVisualizeTree }: IqtreePanelP
   const [job, setJob] = useState<JobRecord<IqtreeResult> | null>(null);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
-  const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const { elapsedSeconds, startTimer } = useRunTimer(isRunning);
   const [isInputOpen, setIsInputOpen] = useState(true);
   const [inputFile, setInputFile] = useState<{ name: string; size: number } | null>(null);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
@@ -72,23 +74,13 @@ export function IqtreePanel({ initialFasta = "", onVisualizeTree }: IqtreePanelP
       setPayload((current) => ({ ...current, aligned_fasta: nextInitialFasta }));
     }
   }, [initialFasta]);
+  useEffect(() => onRunningChange?.(isRunning), [isRunning, onRunningChange]);
 
   useEffect(() => {
     if (payload.model_mode === "fixed" && payload.model !== selectedModel) {
       setPayload((current) => ({ ...current, model: selectedModel }));
     }
   }, [payload.model, payload.model_mode, selectedModel]);
-
-  useEffect(() => {
-    if (!isRunning || runStartedAt === null) {
-      return undefined;
-    }
-    setElapsedSeconds(Math.max(0, Math.floor((Date.now() - runStartedAt) / 1000)));
-    const timer = window.setInterval(() => {
-      setElapsedSeconds(Math.max(0, Math.floor((Date.now() - runStartedAt) / 1000)));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [isRunning, runStartedAt]);
 
   const submit = async () => {
     const records = parseFasta(payload.aligned_fasta);
@@ -99,13 +91,13 @@ export function IqtreePanel({ initialFasta = "", onVisualizeTree }: IqtreePanelP
       return;
     }
     setIsRunning(true);
-    setRunStartedAt(Date.now());
-    setElapsedSeconds(0);
+    setIsInputOpen(false);
+    startTimer();
     setJob(null);
     setError("");
     try {
       const nextPayload = { ...payload, model: selectedModel };
-      const nextJob = await runIqtree(nextPayload);
+      const nextJob = await runIqtree(nextPayload, { onStarted: setJob, onUpdate: setJob });
       setJob(nextJob);
       setHistoryItems(
         addToolHistory<IqtreePayload>(TOOL_NAME, {
@@ -125,20 +117,29 @@ export function IqtreePanel({ initialFasta = "", onVisualizeTree }: IqtreePanelP
     }
   };
 
+  const stop = async () => { if (job) { setJob(await cancelJob<IqtreeResult>(job.id)); setIsRunning(false); } };
+
   const restoreHistory = async (item: ToolHistoryItem<IqtreePayload>) => {
-    setPayload(item.payload);
     setInputFile(item.inputFileSize === undefined ? null : { name: item.fileName, size: item.inputFileSize });
     setError("");
-    setRunStartedAt(null);
-    setElapsedSeconds(0);
-    if (!item.jobId) { setJob(null); setIsInputOpen(true); return; }
+    if (!item.jobId) { if (item.payload) setPayload(item.payload); setJob(null); setIsInputOpen(true); return; }
     setIsRunning(true);
     try {
-      setJob(await getJob<IqtreeResult>(item.jobId));
+      const [restoredJob, restoredPayload] = await Promise.all([
+        getJob<IqtreeResult>(item.jobId),
+        item.payload ? Promise.resolve(item.payload) : getJobInput<IqtreePayload>(item.jobId)
+      ]);
+      setPayload(restoredPayload);
+      setJob(restoredJob);
       setIsInputOpen(false);
     } catch (caught) {
       setJob(null);
-      setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      if (item.payload) {
+        setPayload(item.payload);
+        setError("历史结果文件不在当前后端环境中，已恢复输入参数；需要重新运行以生成结果。");
+      } else {
+        setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      }
       setIsInputOpen(true);
     } finally { setIsRunning(false); }
   };
@@ -150,7 +151,7 @@ export function IqtreePanel({ initialFasta = "", onVisualizeTree }: IqtreePanelP
           <button className="input-toggle-button" type="button" onClick={() => setIsInputOpen((value) => !value)} aria-expanded={isInputOpen}>
             <div className="input-card-title">
               <p className="eyebrow">IQ-TREE</p>
-              <h2>{isInputOpen ? "系统发育树输入" : "IQ-TREE 输入"}</h2>
+              <h2>Input</h2>
             </div>
             {!isInputOpen ? (
               <span className="input-parameter-summary">
@@ -289,13 +290,7 @@ export function IqtreePanel({ initialFasta = "", onVisualizeTree }: IqtreePanelP
 
       <div className="tool-results">
         {isRunning ? (
-          <IqtreeRunningView
-            elapsedSeconds={elapsedSeconds}
-            sequenceCount={detectedSummary.sequenceCount}
-            alignmentLength={detectedSummary.alignmentLength}
-            model={payload.model_mode === "auto" ? "ModelFinder (MFP)" : selectedModel}
-            threadLabel={payload.thread_mode === "auto" ? "AUTO" : `${payload.thread_count} threads`}
-          />
+          <ToolRunStatus title="正在构建系统发育树" description="IQ-TREE 正在选择模型并推断树，完成后自动显示树预览。" elapsedSeconds={elapsedSeconds} stage={payload.model_mode === "auto" ? "ModelFinder / 树搜索 / 支持度计算" : "树搜索与支持度计算"} onCancel={job ? stop : undefined} metrics={[{ label: "输入序列", value: detectedSummary.sequenceCount }, { label: "比对长度", value: detectedSummary.alignmentLength }, { label: "模型", value: payload.model_mode === "auto" ? "MFP" : selectedModel }, { label: "线程", value: payload.thread_mode === "auto" ? "AUTO" : payload.thread_count }]} />
         ) : job?.result ? (
           <IqtreeResultView result={job.result} jobId={job.id} onVisualizeTree={onVisualizeTree} />
         ) : job ? (
@@ -309,39 +304,6 @@ export function IqtreePanel({ initialFasta = "", onVisualizeTree }: IqtreePanelP
           <StatusMessage>提交已比对 FASTA 后，这里会显示 Newick、树预览、模型报告和下载文件。</StatusMessage>
         )}
       </div>
-    </section>
-  );
-}
-
-function IqtreeRunningView({
-  elapsedSeconds,
-  sequenceCount,
-  alignmentLength,
-  model,
-  threadLabel
-}: {
-  elapsedSeconds: number;
-  sequenceCount: number;
-  alignmentLength: number;
-  model: string;
-  threadLabel: string;
-}) {
-  return (
-    <section className="report-block iqtree-run-status">
-      <div className="iqtree-run-status-header">
-        <span className="run-spinner" aria-hidden="true" />
-        <div>
-          <h3>正在构建系统发育树</h3>
-          <p>IQ-TREE 正在运行，完成后这里会自动切换为树预览和下载文件。</p>
-        </div>
-      </div>
-      <div className="summary-row iqtree-summary-row">
-        <div><span>已运行</span><strong>{formatElapsed(elapsedSeconds)}</strong></div>
-        <div><span>输入序列</span><strong>{sequenceCount}</strong></div>
-        <div><span>比对长度</span><strong>{alignmentLength}</strong></div>
-        <div><span>模型 / 线程</span><strong>{model} · {threadLabel}</strong></div>
-      </div>
-      <div className="iqtree-progress-bar" aria-hidden="true"><span /></div>
     </section>
   );
 }
@@ -388,7 +350,7 @@ function IqtreeResultView({
             ) : null}
           </div>
         </div>
-        <TreePreview newick={result.newick} />
+        <PhylogeneticTreePreview newick={result.newick} />
       </section>
       <ResultFiles jobId={jobId} files={result.files} />
       <section className="report-block iqtree-advanced-result">
@@ -432,12 +394,6 @@ function summarizeAlignment(fasta: string): { sequenceCount: number; alignmentLe
     alignmentLength: records[0]?.sequence.length ?? 0,
     isAligned: records.length >= 3 && lengths.size === 1
   };
-}
-
-function formatElapsed(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
 }
 
 function normalizeFastaInput(value: unknown): string {

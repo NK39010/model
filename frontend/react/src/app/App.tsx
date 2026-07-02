@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ErrorBoundary } from "../shared/components/ErrorBoundary";
 import { BmgePanel } from "../tools/bmge/BmgePanel";
 import { GgtreePanel } from "../tools/ggtree/GgtreePanel";
@@ -40,6 +40,10 @@ export function App() {
   const [ggtreeInput, setGgtreeInput] = useState("");
   const [isCategoryCollapsed, setIsCategoryCollapsed] = useState(false);
   const [isToolCollapsed, setIsToolCollapsed] = useState(false);
+  const [runningTools, setRunningTools] = useState<Partial<Record<ToolKey, boolean>>>({});
+  const runningCallbacks = useMemo(() => Object.fromEntries(
+    TOOLS.msa.map((tool) => [tool.key, (running: boolean) => setRunningTools((current) => current[tool.key] === running ? current : { ...current, [tool.key]: running })])
+  ) as Record<ToolKey, (running: boolean) => void>, []);
 
   const analyzeAlignment = (alignedFasta: string) => {
     setQualityInput(alignedFasta);
@@ -145,7 +149,7 @@ export function App() {
               onClick={() => setActiveTool(tool.key)}
               title={tool.label}
             >
-              <span>{isToolCollapsed ? tool.shortLabel : tool.label}</span>
+              <span className="tool-nav-label">{isToolCollapsed ? tool.shortLabel : tool.label}{runningTools[tool.key] ? <i className="tool-running-dot" aria-label="正在运行" /> : null}</span>
               {!isToolCollapsed ? <small>{tool.subtitle}</small> : null}
             </button>
           ))}
@@ -153,31 +157,41 @@ export function App() {
       </aside>
 
       <section className="workspace workspace-panel">
-        <div className="workspace-page" key={`${activeCategory}-${activeTool}`}>
+        <div className="workspace-page">
           <div className="workspace-breadcrumb">
             <span>{activeCategoryMeta.label}</span>
             <strong>{activeToolMeta.label}</strong>
           </div>
-          <ErrorBoundary resetKey={`${activeCategory}-${activeTool}`}>
-            {activeTool === "mafft" ? (
-              <MafftPanel onAnalyzeAlignment={analyzeAlignment} onBuildTree={buildTree} />
-            ) : null}
-            {activeTool === "msa-quality" ? (
-              <MsaQualityPanel initialFasta={qualityInput} onTrimAlignment={trimAlignment} onBmgeAlignment={bmgeTrimAlignment} onBuildTree={buildTree} />
-            ) : null}
-            {activeTool === "trimal" ? (
-              <TrimalPanel initialFasta={trimalInput} onAnalyzeTrimmed={analyzeTrimmedAlignment} onBuildTree={buildTree} />
-            ) : null}
-            {activeTool === "bmge" ? (
-              <BmgePanel initialFasta={bmgeInput} onAnalyzeTrimmed={analyzeTrimmedAlignment} onBuildTree={buildTree} />
-            ) : null}
-            {activeTool === "iqtree" ? (
-              <IqtreePanel initialFasta={iqtreeInput} onVisualizeTree={visualizeTree} />
-            ) : null}
-            {activeTool === "ggtree" ? (
-              <GgtreePanel initialNewick={ggtreeInput} />
-            ) : null}
-          </ErrorBoundary>
+          <div className="tool-view" hidden={activeTool !== "mafft"}>
+            <ErrorBoundary resetKey="mafft">
+              <MafftPanel onAnalyzeAlignment={analyzeAlignment} onBuildTree={buildTree} onRunningChange={runningCallbacks.mafft} />
+            </ErrorBoundary>
+          </div>
+          <div className="tool-view" hidden={activeTool !== "msa-quality"}>
+            <ErrorBoundary resetKey="msa-quality">
+              <MsaQualityPanel initialFasta={qualityInput} onTrimAlignment={trimAlignment} onBmgeAlignment={bmgeTrimAlignment} onBuildTree={buildTree} onRunningChange={runningCallbacks["msa-quality"]} />
+            </ErrorBoundary>
+          </div>
+          <div className="tool-view" hidden={activeTool !== "trimal"}>
+            <ErrorBoundary resetKey="trimal">
+              <TrimalPanel initialFasta={trimalInput} onAnalyzeTrimmed={analyzeTrimmedAlignment} onBuildTree={buildTree} onRunningChange={runningCallbacks.trimal} />
+            </ErrorBoundary>
+          </div>
+          <div className="tool-view" hidden={activeTool !== "bmge"}>
+            <ErrorBoundary resetKey="bmge">
+              <BmgePanel initialFasta={bmgeInput} onAnalyzeTrimmed={analyzeTrimmedAlignment} onBuildTree={buildTree} onRunningChange={runningCallbacks.bmge} />
+            </ErrorBoundary>
+          </div>
+          <div className="tool-view" hidden={activeTool !== "iqtree"}>
+            <ErrorBoundary resetKey="iqtree">
+              <IqtreePanel initialFasta={iqtreeInput} onVisualizeTree={visualizeTree} onRunningChange={runningCallbacks.iqtree} />
+            </ErrorBoundary>
+          </div>
+          <div className="tool-view" hidden={activeTool !== "ggtree"}>
+            <ErrorBoundary resetKey="ggtree">
+              <GgtreePanel initialNewick={ggtreeInput} onRunningChange={runningCallbacks.ggtree} />
+            </ErrorBoundary>
+          </div>
         </div>
       </section>
     </main>

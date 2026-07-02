@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { ResultFiles } from "../../shared/components/ResultFiles";
-import { getJob } from "../../api/jobs";
+import { cancelJob, getJob, getJobInput } from "../../api/jobs";
 import { FilePicker } from "../../shared/components/FilePicker";
 import { HelpTip } from "../../shared/components/HelpTip";
 import { StatusMessage } from "../../shared/components/StatusMessage";
 import { ToolHistoryMenu } from "../../shared/components/ToolHistoryMenu";
+import { ToolRunStatus } from "../../shared/components/ToolRunStatus";
+import { useRunTimer } from "../../shared/hooks/useRunTimer";
 import type { JobRecord } from "../../shared/types/job";
 import { parseFasta } from "../../shared/utils/fasta";
 import { addToolHistory, readToolHistory, type ToolHistoryItem } from "../../shared/utils/toolHistory";
@@ -33,9 +35,10 @@ interface MsaQualityPanelProps {
   onTrimAlignment?: (alignedFasta: string) => void;
   onBmgeAlignment?: (alignedFasta: string) => void;
   onBuildTree?: (alignedFasta: string) => void;
+  onRunningChange?: (running: boolean) => void;
 }
 
-export function MsaQualityPanel({ initialFasta = "", onTrimAlignment, onBmgeAlignment, onBuildTree }: MsaQualityPanelProps) {
+export function MsaQualityPanel({ initialFasta = "", onTrimAlignment, onBmgeAlignment, onBuildTree, onRunningChange }: MsaQualityPanelProps) {
   const [payload, setPayload] = useState<MsaQualityPayload>({
     aligned_fasta: initialFasta || EXAMPLE_ALIGNED,
     sequence_type: "auto",
@@ -49,6 +52,7 @@ export function MsaQualityPanel({ initialFasta = "", onTrimAlignment, onBmgeAlig
   const [job, setJob] = useState<JobRecord<MsaQualityResult> | null>(null);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const { elapsedSeconds, startTimer } = useRunTimer(isRunning);
   const [isInputOpen, setIsInputOpen] = useState(true);
   const [inputFile, setInputFile] = useState<{ name: string; size: number } | null>(null);
   const [historyItems, setHistoryItems] = useState<Array<ToolHistoryItem<MsaQualityPayload>>>(() =>
@@ -60,6 +64,7 @@ export function MsaQualityPanel({ initialFasta = "", onTrimAlignment, onBmgeAlig
       setPayload((current) => ({ ...current, aligned_fasta: initialFasta }));
     }
   }, [initialFasta]);
+  useEffect(() => onRunningChange?.(isRunning), [isRunning, onRunningChange]);
 
   const submit = async () => {
     const records = parseFasta(payload.aligned_fasta);
@@ -68,10 +73,12 @@ export function MsaQualityPanel({ initialFasta = "", onTrimAlignment, onBmgeAlig
       setIsInputOpen(true);
       return;
     }
+    startTimer();
     setIsRunning(true);
+    setIsInputOpen(false);
     setError("");
     try {
-      const nextJob = await runMsaQuality(payload);
+      const nextJob = await runMsaQuality(payload, { onStarted: setJob, onUpdate: setJob });
       setJob(nextJob);
       setHistoryItems(
         addToolHistory<MsaQualityPayload>(MSA_QUALITY_TOOL_NAME, {
@@ -91,18 +98,29 @@ export function MsaQualityPanel({ initialFasta = "", onTrimAlignment, onBmgeAlig
     }
   };
 
+  const stop = async () => { if (job) { setJob(await cancelJob<MsaQualityResult>(job.id)); setIsRunning(false); } };
+
   const restoreHistory = async (item: ToolHistoryItem<MsaQualityPayload>) => {
-    setPayload(item.payload);
     setInputFile(item.inputFileSize === undefined ? null : { name: item.fileName, size: item.inputFileSize });
     setError("");
-    if (!item.jobId) { setJob(null); setIsInputOpen(true); return; }
+    if (!item.jobId) { if (item.payload) setPayload(item.payload); setJob(null); setIsInputOpen(true); return; }
     setIsRunning(true);
     try {
-      setJob(await getJob<MsaQualityResult>(item.jobId));
+      const [restoredJob, restoredPayload] = await Promise.all([
+        getJob<MsaQualityResult>(item.jobId),
+        item.payload ? Promise.resolve(item.payload) : getJobInput<MsaQualityPayload>(item.jobId)
+      ]);
+      setPayload(restoredPayload);
+      setJob(restoredJob);
       setIsInputOpen(false);
     } catch (caught) {
       setJob(null);
-      setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      if (item.payload) {
+        setPayload(item.payload);
+        setError("历史结果文件不在当前后端环境中，已恢复输入参数；需要重新运行以生成结果。");
+      } else {
+        setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      }
       setIsInputOpen(true);
     } finally { setIsRunning(false); }
   };
@@ -114,7 +132,7 @@ export function MsaQualityPanel({ initialFasta = "", onTrimAlignment, onBmgeAlig
           <button className="input-toggle-button" type="button" onClick={() => setIsInputOpen((value) => !value)} aria-expanded={isInputOpen}>
             <div className="input-card-title">
             <p className="eyebrow">MSA_quality</p>
-            <h2>{isInputOpen ? "输入" : "比对质量评估输入"}</h2>
+            <h2>Input</h2>
             </div>
             {!isInputOpen ? <span className="input-parameter-summary">{inputFile ? `${inputFile.name} · ${parseFasta(payload.aligned_fasta).length} 条序列 · ` : ""}{SEQUENCE_TYPE_LABEL[payload.sequence_type]} · GAP {payload.high_gap_threshold.toFixed(2)} · 保守性 {payload.low_conservation_threshold.toFixed(2)}</span> : null}
             <span className="input-toggle-label">{isInputOpen ? "⌃" : "⌄"}</span>
@@ -189,7 +207,9 @@ export function MsaQualityPanel({ initialFasta = "", onTrimAlignment, onBmgeAlig
       </div>
 
       <div className="msa-report-shell">
-        {job?.result ? (
+        {isRunning ? (
+          <ToolRunStatus title="正在评估比对质量" description="正在计算位点质量、序列相似度与问题区域。" elapsedSeconds={elapsedSeconds} stage="生成质量指标与报告" onCancel={job ? stop : undefined} metrics={[{ label: "输入序列", value: parseFasta(payload.aligned_fasta).length }, { label: "比对长度", value: parseFasta(payload.aligned_fasta)[0]?.sequence.length ?? 0 }, { label: "类型", value: SEQUENCE_TYPE_LABEL[payload.sequence_type] }]} />
+        ) : job?.result ? (
           <>
             <MsaQualityReport result={job.result} />
             {onTrimAlignment || onBmgeAlignment || onBuildTree ? (

@@ -55,6 +55,15 @@ class BioToolRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         path = urlparse(self.path).path
 
+        if path.startswith("/api/jobs/") and path.endswith("/cancel"):
+            job_id = path.removeprefix("/api/jobs/").removesuffix("/cancel").strip("/")
+            job = JOB_SERVICE.cancel_job(job_id)
+            if job is None:
+                self._send_json({"error": f"Unknown job: {job_id}"}, HTTPStatus.NOT_FOUND)
+                return
+            self._send_json(asdict(job))
+            return
+
         if path != "/api/jobs":
             self._send_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
             return
@@ -70,7 +79,7 @@ class BioToolRequestHandler(BaseHTTPRequestHandler):
             )
             return
 
-        job = JOB_SERVICE.submit_and_run(tool_name, payload)
+        job = JOB_SERVICE.submit(tool_name, payload)
         self._send_json(asdict(job), HTTPStatus.CREATED)
 
     def log_message(self, format: str, *args: Any) -> None:

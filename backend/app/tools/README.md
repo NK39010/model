@@ -1,4 +1,4 @@
-# Documents the contract for adding new backend tool modules.
+# Backend tool modules
 
 每个新工具模块建议放在：
 
@@ -29,11 +29,18 @@ run(payload, workdir)
 parse_result(workdir)
 ```
 
-模块内不要直接写 API 路由、不要直接管理 job_id、不要写入 `workdir` 外部目录。结果文件建议至少包含：
+模块内不要直接写 API 路由、不要直接管理 `job_id`、不要写入 `workdir` 外部目录。
+
+`JobService` 统一创建和维护：
 
 ```text
 input.json
 job.json
+```
+
+Runner 返回结构化结果，并通常把工具结果写为：
+
+```text
 result.json
 ```
 

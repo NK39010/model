@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { FilePicker } from "../../shared/components/FilePicker";
 import { HelpTip } from "../../shared/components/HelpTip";
 import { ResultFiles } from "../../shared/components/ResultFiles";
-import { getJob } from "../../api/jobs";
+import { cancelJob, getJob, getJobInput } from "../../api/jobs";
 import { StatusMessage } from "../../shared/components/StatusMessage";
 import { ToolHistoryMenu } from "../../shared/components/ToolHistoryMenu";
+import { ToolRunStatus } from "../../shared/components/ToolRunStatus";
+import { useRunTimer } from "../../shared/hooks/useRunTimer";
 import type { JobRecord } from "../../shared/types/job";
 import { parseFasta, recordsToFasta } from "../../shared/utils/fasta";
 import { addToolHistory, readToolHistory, type ToolHistoryItem } from "../../shared/utils/toolHistory";
@@ -31,9 +33,10 @@ interface BmgePanelProps {
   initialFasta?: string;
   onAnalyzeTrimmed: (trimmedFasta: string) => void;
   onBuildTree?: (trimmedFasta: string) => void;
+  onRunningChange?: (running: boolean) => void;
 }
 
-export function BmgePanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }: BmgePanelProps) {
+export function BmgePanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree, onRunningChange }: BmgePanelProps) {
   const [payload, setPayload] = useState<BmgePayload>({
     aligned_fasta: initialFasta || EXAMPLE_ALIGNED,
     sequence_type: "auto",
@@ -44,6 +47,7 @@ export function BmgePanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }: 
   const [job, setJob] = useState<JobRecord<BmgeResult> | null>(null);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const { elapsedSeconds, startTimer } = useRunTimer(isRunning);
   const [isInputOpen, setIsInputOpen] = useState(true);
   const [inputFile, setInputFile] = useState<{ name: string; size: number } | null>(null);
   const [historyItems, setHistoryItems] = useState<Array<ToolHistoryItem<BmgePayload>>>(() =>
@@ -55,8 +59,10 @@ export function BmgePanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }: 
       setPayload((current) => ({ ...current, aligned_fasta: initialFasta }));
     }
   }, [initialFasta]);
+  useEffect(() => onRunningChange?.(isRunning), [isRunning, onRunningChange]);
 
   const submit = async () => {
+    startTimer();
     const records = parseFasta(payload.aligned_fasta);
     if (records.length < 2 || new Set(records.map((record) => record.sequence.length)).size !== 1) {
       setError("BMGE 需要至少两条长度一致的已比对序列。");
@@ -64,9 +70,10 @@ export function BmgePanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }: 
       return;
     }
     setIsRunning(true);
+    setIsInputOpen(false);
     setError("");
     try {
-      const nextJob = await runBmge(payload);
+      const nextJob = await runBmge(payload, { onStarted: setJob, onUpdate: setJob });
       setJob(nextJob);
       setHistoryItems(
         addToolHistory<BmgePayload>(TOOL_NAME, {
@@ -86,18 +93,29 @@ export function BmgePanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }: 
     }
   };
 
+  const stop = async () => { if (job) { setJob(await cancelJob<BmgeResult>(job.id)); setIsRunning(false); } };
+
   const restoreHistory = async (item: ToolHistoryItem<BmgePayload>) => {
-    setPayload(item.payload);
     setInputFile(item.inputFileSize === undefined ? null : { name: item.fileName, size: item.inputFileSize });
     setError("");
-    if (!item.jobId) { setJob(null); setIsInputOpen(true); return; }
+    if (!item.jobId) { if (item.payload) setPayload(item.payload); setJob(null); setIsInputOpen(true); return; }
     setIsRunning(true);
     try {
-      setJob(await getJob<BmgeResult>(item.jobId));
+      const [restoredJob, restoredPayload] = await Promise.all([
+        getJob<BmgeResult>(item.jobId),
+        item.payload ? Promise.resolve(item.payload) : getJobInput<BmgePayload>(item.jobId)
+      ]);
+      setPayload(restoredPayload);
+      setJob(restoredJob);
       setIsInputOpen(false);
     } catch (caught) {
       setJob(null);
-      setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      if (item.payload) {
+        setPayload(item.payload);
+        setError("历史结果文件不在当前后端环境中，已恢复输入参数；需要重新运行以生成结果。");
+      } else {
+        setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      }
       setIsInputOpen(true);
     } finally { setIsRunning(false); }
   };
@@ -111,7 +129,7 @@ export function BmgePanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }: 
           <button className="input-toggle-button" type="button" onClick={() => setIsInputOpen((value) => !value)} aria-expanded={isInputOpen}>
             <div className="input-card-title">
               <p className="eyebrow">BMGE</p>
-              <h2>{isInputOpen ? "熵筛选输入" : "BMGE 输入"}</h2>
+              <h2>Input</h2>
             </div>
             {!isInputOpen ? (
               <span className="input-parameter-summary">
@@ -178,7 +196,9 @@ export function BmgePanel({ initialFasta = "", onAnalyzeTrimmed, onBuildTree }: 
       </div>
 
       <div className="tool-results">
-        {job?.result ? (
+        {isRunning ? (
+          <ToolRunStatus title="正在进行熵筛选" description="BMGE 正在按熵与缺口阈值筛选比对列。" elapsedSeconds={elapsedSeconds} stage="计算列熵并生成修剪结果" onCancel={job ? stop : undefined} metrics={[{ label: "输入序列", value: parseFasta(payload.aligned_fasta).length }, { label: "熵阈值", value: payload.entropy_threshold.toFixed(2) }, { label: "GAP 阈值", value: payload.gap_rate_cutoff.toFixed(2) }]} />
+        ) : job?.result ? (
           <BmgeResultView result={job.result} jobId={job.id} trimmedFasta={trimmedFasta} onAnalyzeTrimmed={onAnalyzeTrimmed} onBuildTree={onBuildTree} />
         ) : (
           <StatusMessage>提交已比对 FASTA 后，这里会显示熵筛选前后对比、删除区间和 trimmed FASTA。</StatusMessage>

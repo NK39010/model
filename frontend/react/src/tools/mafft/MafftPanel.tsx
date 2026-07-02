@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ResultFiles } from "../../shared/components/ResultFiles";
-import { getJob } from "../../api/jobs";
+import { cancelJob, getJob, getJobInput } from "../../api/jobs";
 import { FilePicker } from "../../shared/components/FilePicker";
 import { HelpTip } from "../../shared/components/HelpTip";
 import { StatusMessage } from "../../shared/components/StatusMessage";
 import { ToolHistoryMenu } from "../../shared/components/ToolHistoryMenu";
+import { ToolRunStatus } from "../../shared/components/ToolRunStatus";
+import { useRunTimer } from "../../shared/hooks/useRunTimer";
 import type { JobRecord } from "../../shared/types/job";
 import { parseFasta, recordsToFasta } from "../../shared/utils/fasta";
 import { addToolHistory, readToolHistory, type ToolHistoryItem } from "../../shared/utils/toolHistory";
@@ -31,9 +33,10 @@ const MAFFT_TOOL_NAME = "mafft_alignment";
 interface MafftPanelProps {
   onAnalyzeAlignment: (alignedFasta: string) => void;
   onBuildTree?: (alignedFasta: string) => void;
+  onRunningChange?: (running: boolean) => void;
 }
 
-export function MafftPanel({ onAnalyzeAlignment, onBuildTree }: MafftPanelProps) {
+export function MafftPanel({ onAnalyzeAlignment, onBuildTree, onRunningChange }: MafftPanelProps) {
   const [payload, setPayload] = useState<MafftPayload>({
     fasta: EXAMPLE_FASTA,
     mode: "auto",
@@ -44,6 +47,7 @@ export function MafftPanel({ onAnalyzeAlignment, onBuildTree }: MafftPanelProps)
   const [job, setJob] = useState<JobRecord<MafftResult> | null>(null);
   const [error, setError] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const { elapsedSeconds, startTimer } = useRunTimer(isRunning);
   const [isInputOpen, setIsInputOpen] = useState(true);
   const [inputFile, setInputFile] = useState<{ name: string; size: number } | null>(null);
   const [historyItems, setHistoryItems] = useState<Array<ToolHistoryItem<MafftPayload>>>(() =>
@@ -54,12 +58,15 @@ export function MafftPanel({ onAnalyzeAlignment, onBuildTree }: MafftPanelProps)
     () => MODE_OPTIONS.find((option) => option.value === payload.mode) ?? MODE_OPTIONS[0],
     [payload.mode]
   );
+  useEffect(() => onRunningChange?.(isRunning), [isRunning, onRunningChange]);
 
   const submit = async () => {
+    startTimer();
     setIsRunning(true);
+    setIsInputOpen(false);
     setError("");
     try {
-      const nextJob = await runMafft(payload);
+      const nextJob = await runMafft(payload, { onStarted: setJob, onUpdate: setJob });
       setJob(nextJob);
       setHistoryItems(
         addToolHistory<MafftPayload>(MAFFT_TOOL_NAME, {
@@ -81,22 +88,34 @@ export function MafftPanel({ onAnalyzeAlignment, onBuildTree }: MafftPanelProps)
 
   const alignedFasta = job?.result ? recordsToFasta(job.result.aligned_records) : "";
 
+  const stop = async () => { if (job) { setJob(await cancelJob<MafftResult>(job.id)); setIsRunning(false); } };
+
   const restoreHistory = async (item: ToolHistoryItem<MafftPayload>) => {
-    setPayload(item.payload);
     setInputFile(item.inputFileSize === undefined ? null : { name: item.fileName, size: item.inputFileSize });
     setError("");
     if (!item.jobId) {
+      if (item.payload) setPayload(item.payload);
       setJob(null);
       setIsInputOpen(true);
       return;
     }
     setIsRunning(true);
     try {
-      setJob(await getJob<MafftResult>(item.jobId));
+      const [restoredJob, restoredPayload] = await Promise.all([
+        getJob<MafftResult>(item.jobId),
+        item.payload ? Promise.resolve(item.payload) : getJobInput<MafftPayload>(item.jobId)
+      ]);
+      setPayload(restoredPayload);
+      setJob(restoredJob);
       setIsInputOpen(false);
     } catch (caught) {
       setJob(null);
-      setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      if (item.payload) {
+        setPayload(item.payload);
+        setError("历史结果文件不在当前后端环境中，已恢复输入参数；需要重新运行以生成结果。");
+      } else {
+        setError(caught instanceof Error ? caught.message : "无法读取历史结果。");
+      }
       setIsInputOpen(true);
     } finally {
       setIsRunning(false);
@@ -110,7 +129,7 @@ export function MafftPanel({ onAnalyzeAlignment, onBuildTree }: MafftPanelProps)
           <button className="input-toggle-button" type="button" onClick={() => setIsInputOpen((value) => !value)} aria-expanded={isInputOpen}>
             <div className="input-card-title">
             <p className="eyebrow">MAFFT</p>
-            <h2>{isInputOpen ? "Input" : "MAFFT Input"}</h2>
+            <h2>Input</h2>
             </div>
             {!isInputOpen ? <span className="input-parameter-summary">{inputFile ? `${inputFile.name} · ${parseFasta(payload.fasta).length} seq · ` : ""}{selectedMode.label} · {payload.sequence_type.toUpperCase()} · {payload.thread_count} Thread</span> : null}
             <span className="input-toggle-label">{isInputOpen ? "⌃" : "⌄"}</span>
@@ -193,7 +212,9 @@ export function MafftPanel({ onAnalyzeAlignment, onBuildTree }: MafftPanelProps)
       </div>
 
       <div className="tool-results">
-        {job?.result ? (
+        {isRunning ? (
+          <ToolRunStatus title="正在进行多序列比对" description="MAFFT 正在计算比对，完成后将自动显示结果文件。" elapsedSeconds={elapsedSeconds} stage="执行 MAFFT 比对" onCancel={job ? stop : undefined} metrics={[{ label: "输入序列", value: parseFasta(payload.fasta).length }, { label: "模式", value: selectedMode.label }, { label: "线程", value: payload.thread_count }]} />
+        ) : job?.result ? (
           <>
             <div className="summary-row">
               <div>

@@ -1,4 +1,4 @@
-export type JobStatus = "completed" | "failed" | "running" | "queued" | "pending";
+export type JobStatus = "completed" | "failed" | "cancelled" | "running" | "queued" | "pending";
 
 export interface JobError {
   code?: string;

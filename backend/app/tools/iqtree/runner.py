@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services.file_service import write_json, write_text
+from app.services.process_service import run_process
 from app.tools.base import ToolRunner
 from app.tools.errors import ToolExecutionError
 from app.tools.iqtree.parser import parse_iqtree_report, parse_iqtree_result, summarize_newick
@@ -31,13 +32,12 @@ class IqtreePhylogenyRunner(ToolRunner):
         thread_count_used = _thread_count_used(binary.path, data)
         command = _command(binary.path, data, input_path, thread_count_used)
         try:
-            completed = subprocess.run(
+            completed = run_process(
                 command,
                 cwd=workdir,
                 text=True,
                 capture_output=True,
                 timeout=3600,
-                check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise ToolExecutionError("IQ-TREE execution failed.", {"reason": str(exc)}) from exc

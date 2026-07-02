@@ -29,6 +29,13 @@ class GgtreeRunnerTest(unittest.TestCase):
                         "show_support": False,
                         "show_branch_length": True,
                         "tip_font_size": 4,
+                        "branch_width": 1.2,
+                        "branch_color": "#123456",
+                        "tip_label_color": "#234567",
+                        "support_color": "#345678",
+                        "background_color": "#f5f5f5",
+                        "support_threshold": 70,
+                        "dpi": 600,
                         "width": 12,
                         "height": 10,
                     },
@@ -38,6 +45,9 @@ class GgtreeRunnerTest(unittest.TestCase):
             self.assertEqual(result["tool"], "ggtree_visualization")
             self.assertEqual(result["layout"], "circular")
             self.assertEqual(result["tip_count"], 3)
+            self.assertEqual(result["branch_color"], "#123456")
+            self.assertEqual(result["support_threshold"], 70)
+            self.assertEqual(result["dpi"], 600)
             self.assertEqual(result["files"]["png"], "ggtree_tree.png")
             self.assertEqual(result["files"]["pdf"], "ggtree_tree.pdf")
             self.assertTrue((workdir / "input.treefile").exists())
@@ -46,6 +56,12 @@ class GgtreeRunnerTest(unittest.TestCase):
     def test_ggtree_rejects_invalid_newick(self) -> None:
         with self.assertRaises(ToolInputError):
             GgtreeVisualizationRunner().validate_input({"newick": "not-a-tree"})
+
+    def test_ggtree_rejects_invalid_style(self) -> None:
+        with self.assertRaises(ToolInputError):
+            GgtreeVisualizationRunner().validate_input(
+                {"newick": "(seq1:0.1,seq2:0.2);", "branch_color": "green"}
+            )
 
     def test_ggtree_reports_missing_configured_rscript(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:

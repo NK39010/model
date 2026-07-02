@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services.file_service import write_json, write_text
+from app.services.process_service import run_process
 from app.tools.base import ToolRunner
 from app.tools.errors import ToolExecutionError
 from app.tools.mafft.modes import MAFFT_MODES
@@ -46,14 +47,13 @@ class MafftAlignmentRunner(ToolRunner):
             env["MAFFT_BINARIES"] = str(binary.binaries_dir)
 
         try:
-            completed = subprocess.run(
+            completed = run_process(
                 command,
                 cwd=workdir,
                 env=env,
                 text=True,
                 capture_output=True,
                 timeout=600,
-                check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise ToolExecutionError("MAFFT execution failed.", {"reason": str(exc)}) from exc

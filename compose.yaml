@@ -1,0 +1,12 @@
+services:
+  bio-tool:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    environment:
+      BIO_TOOL_HOST: 0.0.0.0
+      BIO_TOOL_PORT: 8000
+    volumes:
+      - ./data/results:/app/data/results
+    restart: unless-stopped

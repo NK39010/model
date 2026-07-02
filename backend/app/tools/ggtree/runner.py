@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from app.services.file_service import write_json, write_text
+from app.services.process_service import run_process
 from app.tools.base import ToolRunner
 from app.tools.errors import ToolExecutionError
 from app.tools.ggtree.parser import parse_ggtree_result
@@ -42,15 +43,21 @@ class GgtreeVisualizationRunner(ToolRunner):
             str(data.tip_font_size),
             str(data.width),
             str(data.height),
+            str(data.branch_width),
+            data.branch_color,
+            data.tip_label_color,
+            data.support_color,
+            data.background_color,
+            str(data.support_threshold),
+            str(data.dpi),
         ]
         try:
-            completed = subprocess.run(
+            completed = run_process(
                 command,
                 cwd=workdir,
                 text=True,
                 capture_output=True,
                 timeout=300,
-                check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise ToolExecutionError("R/ggtree execution failed.", {"reason": str(exc)}) from exc
@@ -89,6 +96,13 @@ class GgtreeVisualizationRunner(ToolRunner):
             "show_support": data.show_support,
             "show_branch_length": data.show_branch_length,
             "tip_font_size": data.tip_font_size,
+            "branch_width": data.branch_width,
+            "branch_color": data.branch_color,
+            "tip_label_color": data.tip_label_color,
+            "support_color": data.support_color,
+            "background_color": data.background_color,
+            "support_threshold": data.support_threshold,
+            "dpi": data.dpi,
             "width": data.width,
             "height": data.height,
             "tip_count": _count_tips(data.newick),

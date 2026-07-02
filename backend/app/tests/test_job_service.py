@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from threading import Event
+from unittest.mock import patch
 from pathlib import Path
 
 from app.schemas.common import JobStatus
@@ -10,6 +12,33 @@ from app.services.job_service import JobService
 
 
 class JobServiceTest(unittest.TestCase):
+    def test_async_job_can_be_cancelled(self) -> None:
+        started = Event()
+        release = Event()
+
+        class SlowRunner:
+            def validate_input(self, payload):
+                return None
+
+            def run(self, payload, workdir):
+                started.set()
+                release.wait(2)
+                return {"tool": "slow"}
+
+        with tempfile.TemporaryDirectory() as tempdir, patch(
+            "app.services.job_service.get_tool_runner", return_value=SlowRunner()
+        ):
+            service = JobService(results_root=Path(tempdir))
+            job = service.submit("slow_tool", {})
+            self.assertTrue(started.wait(1))
+
+            cancelled = service.cancel_job(job.id)
+            release.set()
+
+            self.assertIsNotNone(cancelled)
+            self.assertEqual(cancelled.status, JobStatus.CANCELLED)
+            self.assertEqual(cancelled.error["code"], "JOB_CANCELLED")
+
     def test_job_service_runs_registered_alignment_tool(self) -> None:
         with tempfile.TemporaryDirectory() as tempdir:
             results_root = Path(tempdir)

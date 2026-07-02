@@ -6,8 +6,8 @@ import sys
 from pathlib import Path
 
 
-DEFAULT_HOST = "127.0.0.1"
-DEFAULT_PORT = 8000
+DEFAULT_HOST = os.environ.get("BIO_TOOL_HOST", "127.0.0.1")
+DEFAULT_PORT = int(os.environ.get("BIO_TOOL_PORT", "8000"))
 PORT_SEARCH_LIMIT = 20
 
 
