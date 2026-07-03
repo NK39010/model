@@ -24,7 +24,7 @@ const DEFAULT_STYLE: Omit<GgtreePayload, "newick"> = {
   show_nodes: true,
   show_branch_length: true,
   align_tip_labels: false,
-  tip_font_size: 3,
+  tip_font_size: 3.5,
   tip_label_offset: 0.02,
   tip_label_angle: 0,
   branch_width: 0.7,
@@ -41,8 +41,8 @@ const DEFAULT_STYLE: Omit<GgtreePayload, "newick"> = {
   open_angle: 10,
   auto_size: true,
   dpi: 300,
-  width: 11,
-  height: 8,
+  width: 9,
+  height: 6,
   label_overrides: {},
   support_overrides: {},
   node_overrides: {}
@@ -615,7 +615,7 @@ function GgtreeDesignStudio({
               onPointerCancel={endCanvasDrag}
             >
             {previewMode === "react" ? (
-              <div className="ggtree-local-edit-note">拖动和旋转仅影响 React SVG，不改变 ggtree 定位</div>
+              <div className="ggtree-local-edit-note">拖动和旋转仅影响 React SVG；按住 Shift 可吸附到 10px / 15°</div>
             ) : null}
             <div className={`ggtree-canvas-stage ${previewMode === "ggtree" ? "real-preview" : ""}`} onContextMenu={previewMode === "react" ? openCanvasMenu : undefined}>
               {previewMode === "ggtree" && realPreviewFile && displayedPreviewJobId ? (
@@ -805,7 +805,7 @@ function GgtreeStyleControls({
         show_branch_length: false,
         align_tip_labels: false,
         support_threshold: 50,
-        tip_font_size: 3,
+        tip_font_size: 3.5,
         tip_label_offset: 0.02,
         branch_width: 0.7,
         support_mode: "low",
@@ -865,7 +865,7 @@ function GgtreeStyleControls({
       show_branch_length: true,
       align_tip_labels: false,
       support_threshold: 50,
-      tip_font_size: 3,
+      tip_font_size: 3.5,
       tip_label_offset: 0.02,
       branch_width: 0.7,
       support_mode: "text",

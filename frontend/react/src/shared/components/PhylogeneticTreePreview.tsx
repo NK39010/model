@@ -227,7 +227,10 @@ export const PhylogeneticTreePreview = forwardRef<PhylogeneticTreePreviewHandle,
     return <p className="quiet-text">Newick 中没有可展示的叶节点。</p>;
   }
 
-  const labelStep = labelMode === "auto" ? Math.max(1, Math.ceil(layout.leaves.length / 90)) : 1;
+  const labelCapacity = layoutMode === "rectangular"
+    ? Math.max(1, Math.floor((layout.height - TOP_PAD * 2) / Math.max(16, tipFontSize * 1.35)))
+    : Math.max(1, Math.floor((Math.PI * 2 * Math.max(80, Math.min(layout.width, layout.height) / 2 - 70)) / Math.max(30, tipFontSize * 4)));
+  const labelStep = labelMode === "auto" ? Math.max(1, Math.ceil(layout.leaves.length / labelCapacity)) : 1;
   const eligibleSupportNodes = layout.nodes.filter((node) => node.children.length > 0 && node.support && supportValue(node.support) >= supportThreshold);
   const supportStep = supportMode === "auto" ? Math.max(1, Math.ceil(eligibleSupportNodes.length / 60)) : 1;
   const supportOrder = new Map(eligibleSupportNodes.map((node, index) => [node, index]));
@@ -252,15 +255,18 @@ export const PhylogeneticTreePreview = forwardRef<PhylogeneticTreePreviewHandle,
     const point = svgPoint(event);
     if (!point) return;
     if (drag.mode === "move") {
+      const nextX = drag.startTranslate.x + point.x - drag.startPoint.x;
+      const nextY = drag.startTranslate.y + point.y - drag.startPoint.y;
       onTipTransform(leaf.name, {
-        translate_x: drag.startTranslate.x + point.x - drag.startPoint.x,
-        translate_y: drag.startTranslate.y + point.y - drag.startPoint.y
+        translate_x: event.shiftKey ? Math.round(nextX / 10) * 10 : nextX,
+        translate_y: event.shiftKey ? Math.round(nextY / 10) * 10 : nextY
       });
       return;
     }
     const pointerAngle = Math.atan2(point.y - drag.rotationCenter.y, point.x - drag.rotationCenter.x) * 180 / Math.PI;
     const angleDelta = normalizeDegrees(pointerAngle - drag.startPointerAngle);
-    onTipTransform(leaf.name, { angle: normalizeDegrees(drag.startAngle + angleDelta) });
+    const nextAngle = normalizeDegrees(drag.startAngle + angleDelta);
+    onTipTransform(leaf.name, { angle: event.shiftKey ? Math.round(nextAngle / 15) * 15 : nextAngle });
   };
 
   return (
