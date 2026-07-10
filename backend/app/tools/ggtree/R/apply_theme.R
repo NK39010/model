@@ -27,5 +27,13 @@ apply_tree_theme <- function(plot, style) {
     )
   }
 
+  if (style$show_branch_length && style$layout == "rectangular" && "geom_treescale" %in% getNamespaceExports("ggtree")) {
+    plot <- plot + ggtree::geom_treescale(
+      fontsize = max(1.8, min(style$tip_font_size * 0.82, 2.4)),
+      linesize = max(0.25, min(style$branch_width, 0.5)),
+      color = style$branch_color
+    )
+  }
+
   plot
 }

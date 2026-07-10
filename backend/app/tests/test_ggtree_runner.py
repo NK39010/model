@@ -52,6 +52,40 @@ class GgtreeRunnerTest(unittest.TestCase):
             self.assertEqual(result["files"]["pdf"], "ggtree_tree.pdf")
             self.assertTrue((workdir / "input.treefile").exists())
             self.assertTrue((workdir / "ggtree_tree.png").exists())
+            self.assertEqual(result["tree_model"]["tip_count"], 3)
+            self.assertEqual(result["layout_data"]["version"], 1)
+            self.assertEqual(result["files"]["layout"], "ggtree_tree.layout.json")
+
+    def test_tree_model_has_stable_clade_ids(self) -> None:
+        from app.tools.ggtree.tree_model import build_tree_model
+
+        first = build_tree_model("((A:0.1,B:0.2)95:0.3,C:0.4);")
+        second = build_tree_model("(C:0.4,(B:0.2,A:0.1)95:0.3);")
+        self.assertEqual({node["id"] for node in first["nodes"]}, {node["id"] for node in second["nodes"]})
+        self.assertEqual(next(node["support"] for node in first["nodes"] if node["original_label"] == "95"), 95)
+
+    def test_layout_nodes_receive_stable_ids(self) -> None:
+        from app.tools.ggtree.runner import _attach_stable_layout_ids
+
+        layout = {"nodes": [
+            {"r_node": 1, "r_parent": 3, "label": "A"},
+            {"r_node": 2, "r_parent": 3, "label": "B"},
+            {"r_node": 3, "r_parent": 3, "label": "95"},
+        ]}
+        _attach_stable_layout_ids(layout)
+        self.assertTrue(layout["nodes"][0]["node_id"].startswith("tip:"))
+        self.assertTrue(layout["nodes"][2]["node_id"].startswith("clade:"))
+        self.assertEqual(len(layout["nodes"][2]["descendant_tip_ids"]), 2)
+
+    def test_tree_operations_can_reroot_and_midpoint_root(self) -> None:
+        from app.tools.ggtree.tree_operations import apply_tree_operations
+        from app.tools.ggtree.tree_model import build_tree_model
+
+        source = "((A:0.1,B:0.2)95:0.3,(C:0.2,D:0.4)80:0.1);"
+        rerooted = apply_tree_operations(source, "clade:A|B")
+        midpoint = apply_tree_operations(source, midpoint_root=True)
+        self.assertEqual(build_tree_model(rerooted)["tip_count"], 4)
+        self.assertEqual(build_tree_model(midpoint)["tip_count"], 4)
 
     def test_ggtree_rejects_invalid_newick(self) -> None:
         with self.assertRaises(ToolInputError):
@@ -81,11 +115,13 @@ def _fake_rscript_binary(directory: Path) -> Path:
     binary.write_text(
         """#!/usr/bin/env python3
 from pathlib import Path
+import json
 import sys
 
 prefix = Path(sys.argv[3])
 Path(str(prefix) + ".png").write_bytes(b"fake png")
 Path(str(prefix) + ".pdf").write_bytes(b"fake pdf")
+Path(str(prefix) + ".layout.json").write_text(json.dumps({"version": 1, "nodes": []}))
 print("fake ggtree ok")
 """,
         encoding="utf-8",

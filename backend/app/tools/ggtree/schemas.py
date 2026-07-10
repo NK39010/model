@@ -44,6 +44,14 @@ class GgtreeInput:
     label_overrides: dict[str, Any]
     support_overrides: dict[str, Any]
     node_overrides: dict[str, Any]
+    reroot_node_id: str
+    midpoint_root: bool
+    preview_only: bool
+    tip_metadata: dict[str, Any]
+    show_species_labels: bool
+    species_font_size: float
+    species_label_color: str
+    species_label_offset: float
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "GgtreeInput":
@@ -73,20 +81,20 @@ class GgtreeInput:
             show_nodes=_as_bool(payload.get("show_nodes"), True),
             show_branch_length=_as_bool(payload.get("show_branch_length"), True),
             align_tip_labels=_as_bool(payload.get("align_tip_labels"), False),
-            tip_font_size=_bounded_float(payload.get("tip_font_size"), 3.0, 1.0, 12.0, "tip_font_size"),
-            tip_label_offset=_bounded_float(payload.get("tip_label_offset"), 0.02, 0.0, 5.0, "tip_label_offset"),
+            tip_font_size=_bounded_float(payload.get("tip_font_size"), 2.6, 0.8, 30.0, "tip_font_size"),
+            tip_label_offset=_bounded_float(payload.get("tip_label_offset"), 0.015, 0.0, 5.0, "tip_label_offset"),
             tip_label_angle=_bounded_float(payload.get("tip_label_angle"), 0.0, -180.0, 180.0, "tip_label_angle"),
-            branch_width=_bounded_float(payload.get("branch_width"), 0.7, 0.1, 4.0, "branch_width"),
-            branch_color=_hex_color(payload.get("branch_color"), "#52675b", "branch_color"),
-            tip_label_color=_hex_color(payload.get("tip_label_color"), "#17211c", "tip_label_color"),
+            branch_width=_bounded_float(payload.get("branch_width"), 0.45, 0.1, 4.0, "branch_width"),
+            branch_color=_hex_color(payload.get("branch_color"), "#303633", "branch_color"),
+            tip_label_color=_hex_color(payload.get("tip_label_color"), "#171b19", "tip_label_color"),
             support_mode=support_mode,
-            support_font_size=_bounded_float(payload.get("support_font_size"), 2.4, 1.0, 8.0, "support_font_size"),
-            support_color=_hex_color(payload.get("support_color"), "#9a5a35", "support_color"),
+            support_font_size=_bounded_float(payload.get("support_font_size"), 2.0, 0.8, 24.0, "support_font_size"),
+            support_color=_hex_color(payload.get("support_color"), "#6e4d3a", "support_color"),
             background_color=_hex_color(payload.get("background_color"), "#ffffff", "background_color"),
-            support_threshold=_bounded_float(payload.get("support_threshold"), 0.0, 0.0, 100.0, "support_threshold"),
+            support_threshold=_bounded_float(payload.get("support_threshold"), 70.0, 0.0, 100.0, "support_threshold"),
             tree_theme=tree_theme,
-            x_expand=_bounded_float(payload.get("x_expand"), 0.08, 0.0, 1.0, "x_expand"),
-            right_margin=_bounded_float(payload.get("right_margin"), 8.0, 0.0, 80.0, "right_margin"),
+            x_expand=_bounded_float(payload.get("x_expand"), 0.14, 0.0, 1.0, "x_expand"),
+            right_margin=_bounded_float(payload.get("right_margin"), 14.0, 0.0, 80.0, "right_margin"),
             open_angle=_bounded_float(payload.get("open_angle"), 10.0, 0.0, 330.0, "open_angle"),
             auto_size=_as_bool(payload.get("auto_size"), True),
             dpi=int(_bounded_float(payload.get("dpi"), 300.0, 72.0, 600.0, "dpi")),
@@ -95,6 +103,14 @@ class GgtreeInput:
             label_overrides=_as_dict(payload.get("label_overrides")),
             support_overrides=_as_dict(payload.get("support_overrides")),
             node_overrides=_as_dict(payload.get("node_overrides")),
+            reroot_node_id=str(payload.get("reroot_node_id", "")).strip(),
+            midpoint_root=_as_bool(payload.get("midpoint_root"), False),
+            preview_only=_as_bool(payload.get("preview_only"), False),
+            tip_metadata=_as_dict(payload.get("tip_metadata")),
+            show_species_labels=_as_bool(payload.get("show_species_labels"), True),
+            species_font_size=_bounded_float(payload.get("species_font_size"), 1.5, 0.8, 30.0, "species_font_size"),
+            species_label_color=_hex_color(payload.get("species_label_color"), "#52675b", "species_label_color"),
+            species_label_offset=_bounded_float(payload.get("species_label_offset"), 0.06, 0.0, 5.0, "species_label_offset"),
         )
 
 

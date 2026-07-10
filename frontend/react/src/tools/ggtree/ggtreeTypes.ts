@@ -30,6 +30,14 @@ export interface GgtreePayload {
   label_overrides: Record<string, GgtreeLabelOverride>;
   support_overrides: Record<string, GgtreeSupportOverride>;
   node_overrides: Record<string, GgtreeNodeOverride>;
+  reroot_node_id: string;
+  midpoint_root: boolean;
+  preview_only: boolean;
+  tip_metadata: Record<string, { sequence_label?: string; species?: string }>;
+  show_species_labels: boolean;
+  species_font_size: number;
+  species_label_color: string;
+  species_label_offset: number;
 }
 
 export interface GgtreeLabelOverride {
@@ -52,6 +60,7 @@ export interface GgtreeNodeOverride {
   branch_color?: string;
   branch_width?: number;
   collapsed?: boolean;
+  rotated?: boolean;
 }
 
 export interface GgtreeResult {
@@ -89,7 +98,41 @@ export interface GgtreeResult {
   support_overrides?: GgtreePayload["support_overrides"];
   node_overrides?: GgtreePayload["node_overrides"];
   tip_count: number;
+  tree_model?: GgtreeTreeModel;
+  layout_data?: GgtreeLayoutData | null;
   command: string[];
   rscript_binary: string;
   files: ResultFiles;
+}
+
+export interface GgtreeTreeNode {
+  id: string;
+  parent_id: string | null;
+  children: string[];
+  is_tip: boolean;
+  original_label: string;
+  display_label: string;
+  branch_length: number | null;
+  support: number | null;
+  descendant_tip_ids: string[];
+  descendant_labels: string[];
+}
+
+export interface GgtreeTreeModel {
+  version: 1;
+  tree_id: string;
+  root_id: string;
+  rooted: boolean;
+  tip_count: number;
+  internal_node_count: number;
+  has_branch_lengths: boolean;
+  nodes: GgtreeTreeNode[];
+  warnings: string[];
+}
+
+export interface GgtreeLayoutData {
+  version: 1;
+  coordinate_system: string;
+  bounds?: { x_min: number; x_max: number; y_min: number; y_max: number };
+  nodes: Array<{ r_node: number; r_parent: number; node_id?: string; parent_id?: string; descendant_tip_ids?: string[]; descendant_labels?: string[]; x: number; y: number; angle: number; is_tip: boolean; label: string }>;
 }

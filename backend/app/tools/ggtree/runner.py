@@ -12,6 +12,8 @@ from app.tools.errors import ToolExecutionError
 from app.tools.ggtree.parser import parse_ggtree_result
 from app.tools.ggtree.resolver import resolve_rscript_binary
 from app.tools.ggtree.schemas import GgtreeInput
+from app.tools.ggtree.tree_model import build_tree_model
+from app.tools.ggtree.tree_operations import apply_tree_operations
 
 
 class GgtreeVisualizationRunner(ToolRunner):
@@ -25,12 +27,15 @@ class GgtreeVisualizationRunner(ToolRunner):
 
     def run(self, payload: dict[str, Any], workdir: Path) -> dict[str, Any]:
         data = GgtreeInput.from_payload(payload)
+        effective_newick = apply_tree_operations(data.newick, data.reroot_node_id, data.midpoint_root)
         rscript = resolve_rscript_binary()
         input_path = workdir / "input.treefile"
         output_prefix = workdir / "ggtree_tree"
         script_path = Path(__file__).with_name("plot_tree.R")
-        write_text(input_path, data.newick + "\n")
-        tip_count = _count_tips(data.newick)
+        write_text(input_path, effective_newick + "\n")
+        tree_model = build_tree_model(effective_newick)
+        tip_count = tree_model["tip_count"]
+        write_json(workdir / "tree_model.json", tree_model)
         effective = _effective_plot_settings(data.width, data.height, data.tip_font_size, data.support_mode, tip_count, data.auto_size)
         style_path = workdir / "ggtree_style.json"
         style_spec = {
@@ -68,6 +73,14 @@ class GgtreeVisualizationRunner(ToolRunner):
             "label_overrides": data.label_overrides,
             "support_overrides": data.support_overrides,
             "node_overrides": data.node_overrides,
+            "reroot_node_id": data.reroot_node_id,
+            "midpoint_root": data.midpoint_root,
+            "preview_only": data.preview_only,
+            "tip_metadata": data.tip_metadata,
+            "show_species_labels": data.show_species_labels,
+            "species_font_size": data.species_font_size,
+            "species_label_color": data.species_label_color,
+            "species_label_offset": data.species_label_offset,
         }
         write_json(style_path, style_spec)
 
@@ -124,21 +137,32 @@ class GgtreeVisualizationRunner(ToolRunner):
                 },
             )
 
-        png_path = workdir / "ggtree_tree.png"
-        if not png_path.exists():
-            raise ToolExecutionError("R/ggtree did not produce ggtree_tree.png.")
+        required_preview = workdir / ("ggtree_tree.svg" if data.preview_only else "ggtree_tree.png")
+        if not required_preview.exists():
+            raise ToolExecutionError(f"R/ggtree did not produce {required_preview.name}.")
 
         files = {
             "json": "result.json",
             "input_tree": "input.treefile",
             "style": "ggtree_style.json",
-            "png": "ggtree_tree.png",
+            "tree_model": "tree_model.json",
             "stdout": "ggtree.stdout.txt",
             "stderr": "ggtree.stderr.txt",
         }
+        png_path = workdir / "ggtree_tree.png"
+        if png_path.exists():
+            files["png"] = png_path.name
+        layout_path = workdir / "ggtree_tree.layout.json"
+        if layout_path.exists():
+            files["layout"] = layout_path.name
         for label, file_name in {"pdf": "ggtree_tree.pdf", "svg": "ggtree_tree.svg"}.items():
             if (workdir / file_name).exists():
                 files[label] = file_name
+
+        layout_data = _read_optional_json(layout_path)
+        if layout_data:
+            _attach_stable_layout_ids(layout_data)
+            write_json(layout_path, layout_data)
 
         result = {
             "tool": self.name,
@@ -175,6 +199,9 @@ class GgtreeVisualizationRunner(ToolRunner):
             "support_overrides": data.support_overrides,
             "node_overrides": data.node_overrides,
             "tip_count": tip_count,
+            "preview_only": data.preview_only,
+            "tree_model": tree_model,
+            "layout_data": layout_data,
             "command": command,
             "rscript_binary": str(rscript),
             "files": files,
@@ -197,6 +224,53 @@ def _count_tips(newick: str) -> int:
     return body.count(",") + 1
 
 
+def _read_optional_json(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    import json
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _attach_stable_layout_ids(layout: dict[str, Any]) -> None:
+    """Map ggtree's run-local node numbers to topology-stable editor IDs."""
+    from hashlib import sha256
+
+    rows = layout.get("nodes") or []
+    by_number = {int(row["r_node"]): row for row in rows}
+    children: dict[int, list[int]] = {}
+    for row in rows:
+        node_number, parent_number = int(row["r_node"]), int(row["r_parent"])
+        if node_number != parent_number:
+            children.setdefault(parent_number, []).append(node_number)
+
+    def assign(node_number: int) -> list[str]:
+        row = by_number[node_number]
+        child_numbers = children.get(node_number, [])
+        if not child_numbers:
+            node_id = f"tip:{sha256(str(row.get('label', '')).encode()).hexdigest()[:16]}"
+            descendants = [node_id]
+            descendant_labels = [str(row.get("label", ""))]
+        else:
+            descendants = sorted(tip for child in child_numbers for tip in assign(child))
+            descendant_labels = sorted(
+                label
+                for child in child_numbers
+                for label in by_number[child].get("descendant_labels", [])
+            )
+            node_id = f"clade:{'|'.join(descendant_labels)}"
+        row["node_id"] = node_id
+        row["descendant_tip_ids"] = descendants
+        row["descendant_labels"] = descendant_labels
+        return descendants
+
+    roots = [number for number, row in by_number.items() if int(row["r_parent"]) == number or int(row["r_parent"]) not in by_number]
+    for root in roots:
+        assign(root)
+    id_by_number = {number: row.get("node_id") for number, row in by_number.items()}
+    for row in rows:
+        row["parent_id"] = id_by_number.get(int(row["r_parent"]))
+
+
 def _effective_plot_settings(width: float, height: float, tip_font_size: float, support_mode: str, tip_count: int, auto_size: bool) -> dict[str, float | str]:
     if not auto_size:
         return {"width": width, "height": height, "tip_font_size": tip_font_size, "support_mode": support_mode}
@@ -204,20 +278,27 @@ def _effective_plot_settings(width: float, height: float, tip_font_size: float, 
     if tip_count <= 30:
         return {
             "width": max(width, 9.0),
-            "height": max(height, 6.0),
+            "height": max(height, 4.5, 1.2 + tip_count * 0.16),
             "tip_font_size": tip_font_size,
             "support_mode": support_mode,
         }
-    if tip_count <= 120:
+    if tip_count <= 80:
         return {
             "width": max(width, 11.0),
-            "height": max(height, min(18.0, 4.0 + tip_count * 0.08)),
+            "height": max(height, min(17.0, 1.2 + tip_count * 0.16)),
+            "tip_font_size": tip_font_size,
+            "support_mode": support_mode,
+        }
+    if tip_count <= 200:
+        return {
+            "width": max(width, 12.0),
+            "height": max(height, min(30.0, 1.2 + tip_count * 0.16)),
             "tip_font_size": tip_font_size,
             "support_mode": support_mode,
         }
     return {
         "width": max(width, 13.0),
-        "height": max(height, min(36.0, 5.0 + tip_count * 0.055)),
+        "height": max(height, min(40.0, 2.0 + tip_count * 0.12)),
         "tip_font_size": tip_font_size,
-        "support_mode": support_mode,
+        "support_mode": "low" if support_mode == "text" else support_mode,
     }

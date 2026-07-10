@@ -17,6 +17,7 @@ source(file.path(module_dir, "apply_support.R"))
 source(file.path(module_dir, "apply_clades.R"))
 source(file.path(module_dir, "apply_theme.R"))
 source(file.path(module_dir, "export_plot.R"))
+source(file.path(module_dir, "export_layout.R"))
 
 args <- commandArgs(trailingOnly = TRUE)
 parsed <- parse_plot_args(args)
@@ -27,6 +28,7 @@ style <- normalize_style(frontend_style, parsed$defaults)
 tree <- ape::read.tree(parsed$treefile)
 
 plot <- make_base_plot(tree, style)
+plot <- apply_clade_rotations(plot, tree, style)
 plot <- apply_clade_collapses(plot, tree, style)
 plot <- apply_tip_labels(plot, style)
 plot <- apply_node_points(plot, style)
@@ -34,6 +36,7 @@ plot <- apply_support_labels(plot, tree, style)
 plot <- apply_clade_highlights(plot, tree, style)
 plot <- apply_tree_theme(plot, style)
 
+export_layout_json(plot, tree, parsed$output_prefix)
 export_plot_files(plot, parsed$output_prefix, style)
 
 cat("ggtree plot generated for", length(tree$tip.label), "tips\n")

@@ -115,7 +115,13 @@ normalize_style <- function(frontend_style, defaults) {
     dpi = defaults$dpi,
     label_overrides = style_value(frontend_style, "label_overrides", list()),
     support_overrides = style_value(frontend_style, "support_overrides", list()),
-    node_overrides = style_value(frontend_style, "node_overrides", list())
+    node_overrides = style_value(frontend_style, "node_overrides", list()),
+    preview_only = style_bool(frontend_style, "preview_only", FALSE),
+    tip_metadata = style_value(frontend_style, "tip_metadata", list()),
+    show_species_labels = style_bool(frontend_style, "show_species_labels", TRUE),
+    species_font_size = style_number(frontend_style, "species_font_size", 1.5),
+    species_label_color = as.character(style_value(frontend_style, "species_label_color", "#52675b")),
+    species_label_offset = style_number(frontend_style, "species_label_offset", 0.06)
   )
 }
 
